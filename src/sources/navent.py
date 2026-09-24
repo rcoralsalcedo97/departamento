@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from ..http_client import AccessBlocked, NetworkBlocked, PoliteClient, RobotsDisallowed
 from ..models import Listing
 from ..normalize.text_signals import fold, parse_money, relative_date_days, strip_html
-from .apify_client import ApifyClient, ApifyError
+from .apify_client import ApifyAuth, ApifyClient, ApifyError, build_actor_input, dataset_fields
 from .base import (CostBudget, SourceResult, iter_label_values, now_iso, pick, to_bool, to_float,
                    to_int)
 
@@ -368,56 +368,59 @@ def _page_url(url: str, page: int) -> str:
 
 # --------------------------------------------------------------------------- collector
 def collect_navent(name: str, scfg: dict, cfg: dict, http: PoliteClient, budget: CostBudget,
-                   mode: str, token: str | None) -> SourceResult:
+                   mode: str, auth: ApifyAuth | None, max_items: int | None = None) -> SourceResult:
     base_url = scfg["base_url"]
-    max_items = cfg["cost_control"]["validation_max_items"] if mode == "validate" else scfg["full_max_items"]
+    if max_items is None:
+        max_items = cfg["cost_control"]["validation_max_items"] if mode == "validate" else scfg["full_max_items"]
 
-    if token:
-        res = SourceResult(source=name, method=f"Apify actor {scfg['actor_id']}")
+    if auth is not None and auth.available:
+        res = SourceResult(source=name, method=f"Apify actor {scfg['actor_id']} ({auth.method})")
         try:
-            client = ApifyClient(token, http)
+            client = ApifyClient(auth, http)
             info = client.actor_info(scfg["actor_id"])
-            res.audit.update({
-                "actor_title": info.get("title"),
-                "actor_modified": info.get("modifiedAt"),
-                "actor_last_run": (info.get("stats") or {}).get("lastRunStartedAt"),
-                "actor_total_runs": (info.get("stats") or {}).get("totalRuns"),
-            })
-            run_input = dict(scfg["input"])
+            stats = info.get("stats") or {}
+            res.audit.update({"actor_title": info.get("title"), "actor_modified": info.get("modifiedAt"),
+                              "actor_last_run": stats.get("lastRunStartedAt"),
+                              "actor_total_runs": stats.get("totalRuns")})
             try:
-                props = client.input_schema_properties(scfg["actor_id"], info)
+                props = client.input_schema(scfg["actor_id"], info)
             except ApifyError as exc:
                 props = None
-                res.notes.append(f"input schema unavailable ({exc}); sending configured input as-is")
-            if props:
-                unknown = [k for k in run_input if k not in props]
-                for k in unknown:
-                    run_input.pop(k)
-                if unknown:
-                    res.notes.append(f"actor does not declare input(s) {unknown}; dropped them "
-                                     f"(filters re-applied after extraction)")
-                for k in ("maxItems", "maxResults", "limit", "maxListings"):
-                    if k in props:
-                        run_input[k] = max_items
-                res.audit["input_properties"] = sorted(props)
+                res.notes.append(f"input schema unavailable ({exc})")
+            res.audit["input_properties"] = sorted(props) if props else []
+            intent = {"start_urls": scfg["start_urls"], "max_price": cfg["budget"]["query_max_rent"],
+                      "currency": "USD", "min_bedrooms": cfg["bedrooms"]["min"], "max_bedrooms": cfg["bedrooms"]["max"],
+                      "operation": "rent", "property_type": "apartment", "with_details": True,
+                      "raw_input": scfg.get("input", {})}
+            if not props or not _prop_present(props, "start_urls"):
+                intent["location"] = cfg["location"]["district"]
+            run_input, notes = build_actor_input(props, intent, max_items)
+            res.notes.extend(notes)
+            res.audit["actor_input"] = run_input
             est, desc = client.estimate_cost(info, max_items)
             res.audit["pricing"] = desc
+            res.audit["estimated_cost_usd"] = est
             if est is not None and est > budget.remaining and est > 0:
                 scaled = int(max_items * budget.remaining / est)
                 res.notes.append(f"estimated ${est:.2f} for {max_items} items exceeds remaining budget "
                                  f"${budget.remaining:.2f}; reduced to {scaled} items")
                 max_items = scaled
-            if max_items <= 0 or budget.remaining <= 0:
+            if max_items <= 0 or budget.remaining <= 0.01:
                 res.errors.append("cost budget exhausted — source skipped (ask before spending more)")
                 return res.finish("SKIPPED")
+            usage_before = client.monthly_usage_usd()
             run, items = client.run_actor(scfg["actor_id"], run_input, max_items, budget.remaining)
             cost = run.get("usageTotalUsd")
-            cost = float(cost) if cost is not None else (est or 0.0)
+            if cost is None:
+                after = client.monthly_usage_usd()
+                cost = (after - usage_before) if (after is not None and usage_before is not None) else est
+            cost = float(cost or 0.0)
             budget.charge(cost)
             res.cost_usd = cost
-            res.audit.update({"run_id": run.get("id"), "run_status": run.get("status"), "items": len(items)})
-            if mode == "full" and len(items) == 10 and max_items > 10:
-                res.notes.append("exactly 10 items returned — actor free-tier evaluation cap is likely active")
+            res.audit.update({"run_id": run.get("id"), "run_status": run.get("status"), "items": len(items),
+                              "dataset_fields": dataset_fields(items)})
+            if len(items) == 10 and max_items > 10:
+                res.notes.append("exactly 10 items returned — the actor's free-tier evaluation cap is likely active")
             res.raw_records = items
             scraped = now_iso()
             res.listings = [map_navent_record(it, name, base_url, scraped) for it in items]
@@ -432,23 +435,26 @@ def collect_navent(name: str, scfg: dict, cfg: dict, http: PoliteClient, budget:
             res.errors.append(str(exc))
             return res.finish("FAILED")
 
-    # ---- no token: single polite direct attempt, stop on any challenge
-    res = SourceResult(source=name, method="direct HTML (no APIFY_TOKEN)")
-    res.notes.append("APIFY_TOKEN not set — trying one polite direct request; set the token for full coverage")
-    url = scfg["direct_fallback_url"]
-    pages = 1 if mode == "validate" else int(scfg.get("direct_max_pages", 10))
+    # ---- Apify not available: no paid call; one polite direct attempt, stop on any challenge
+    res = SourceResult(source=name, method="direct HTML (Apify not available — local fallback)")
+    if auth is not None:
+        res.notes.append(f"Apify not used: {auth.reason or auth.method}. No paid call was made.")
     scraped = now_iso()
+    pages = 1 if mode == "validate" else int(scfg.get("direct_max_pages", 10))
     try:
-        for page in range(1, pages + 1):
-            resp = http.get_html(_page_url(url, page))
-            if resp.status_code != 200:
-                res.errors.append(f"page {page}: HTTP {resp.status_code}")
-                break
-            recs = parse_navent_search_html(resp.text, base_url)
-            if not recs:
-                res.notes.append(f"page {page}: no listing cards recognised (layout may have changed)")
-                break
-            res.raw_records.extend(recs)
+        for url in scfg["start_urls"]:
+            for page in range(1, pages + 1):
+                resp = http.get_html(_page_url(url, page))
+                if resp.status_code != 200:
+                    res.errors.append(f"{url} page {page}: HTTP {resp.status_code}")
+                    break
+                recs = parse_navent_search_html(resp.text, base_url)
+                if not recs:
+                    res.notes.append(f"{url} page {page}: no listing cards recognised (layout may have changed)")
+                    break
+                res.raw_records.extend(recs)
+                if len(res.raw_records) >= max_items:
+                    break
             if len(res.raw_records) >= max_items:
                 break
     except (AccessBlocked, NetworkBlocked, RobotsDisallowed) as exc:
@@ -456,3 +462,8 @@ def collect_navent(name: str, scfg: dict, cfg: dict, http: PoliteClient, budget:
     res.raw_records = res.raw_records[:max_items]
     res.listings = [map_navent_record(r, name, base_url, scraped) for r in res.raw_records]
     return res.finish("PARTIAL" if res.listings else "FAILED")
+
+
+def _prop_present(props: dict, key: str) -> bool:
+    from .apify_client import _prop
+    return _prop(props, key) is not None

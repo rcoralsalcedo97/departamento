@@ -80,3 +80,53 @@ Finished: 2026-09-24T17:44:13-05:00
 
 - No source returned listings, so no client deliverable was produced (an empty shortlist would be misleading). Fix the blockers above and re-run: python -m src.pipeline --mode full
 
+
+---
+
+## Run 2026-09-24T18:28:08-05:00 — mode `preflight`
+
+Finished: 2026-09-24T18:28:12-05:00
+
+
+### Gate 0 — network preflight (one small request per host)
+
+- FAIL  api.apify.com — blocked by egress proxy (403 Forbidden)
+- FAIL  urbania.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  www.urbania.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  adondevivir.com — blocked by egress proxy (403 Forbidden)
+- FAIL  www.adondevivir.com — blocked by egress proxy (403 Forbidden)
+- FAIL  inmuebles.mercadolibre.com.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  departamento.mercadolibre.com.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  overpass-api.de — blocked by egress proxy (403 Forbidden)
+- FAIL  nominatim.openstreetmap.org — blocked by egress proxy (403 Forbidden)
+- FAIL  estadisticas.bcrp.gob.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  www.sunat.gob.pe — blocked by egress proxy (403 Forbidden)
+
+
+### Apify authentication
+
+- Apify authentication: NOT AVAILABLE
+- Method: ENVIRONMENT_VARIABLE
+- Detail: api.apify.com is unreachable from this environment (network egress policy) — allow api.apify.com
+
+
+---
+
+## Session notes 2026-09-24 (second pass — preparing the REAL run)
+
+- Apify credential supplied by the user: stored only in the git-ignored `.env` (mode 600); never printed, logged or
+  committed. It was pasted into chat, so rotating it after the live run is recommended.
+- Network re-tested after the user's allowlist change: **all 11 hosts still FAIL** at the egress proxy in this
+  session (see preflight above). Environment settings apply to *new* sessions — the live run needs a new session.
+- No paid Apify call was made (authentication resolves to NOT AVAILABLE because api.apify.com is unreachable).
+  External cost this pass: USD 0.00.
+- Portal filter URL grammar verified from the search index: Urbania `?bedroomsNumber=N&priceMax=1150&currencyId=2`;
+  Adondevivir `…-con-1-dormitorio.html` / `…-con-2-dormitorios.html`.
+- Implemented: per-host PASS/FAIL preflight; Apify auth resolver (CLOUD_CREDENTIAL → ENVIRONMENT_VARIABLE → NONE);
+  schema-adaptive actor input + dataset-field logging; validation table; cost-per-item sizing of the full run;
+  STRICT_ALL_IN / BASE_RENT_COMPLIANT / STRETCH classes with a 5-point all-in preference; no noise demotion at LOW
+  confidence; FOREIGN_TENANT_FRIENDLINESS; production integrity guard (demo/example markers rejected); Top-10 live
+  re-check with field comparison; CLIENT_TOP_PICKS sheet; page-1 Top 5 with thumbnails; `_REAL` file names;
+  automated Gate-10 QA (renders, clipping/overlap, links, demo/secret scans, hard rules).
+- Offline verification on synthetic data (scratch folder, `docs/preview/` left untouched): Gate-10 QA all PASS after
+  fixing clipped cells in EXECUTIVE_SHORTLIST found by the new clipping check; 36 tests pass.

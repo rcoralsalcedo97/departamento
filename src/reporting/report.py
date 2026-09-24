@@ -57,6 +57,11 @@ ul { margin: 1mm 0 3mm 5mm; padding: 0; } li { margin-bottom: 1mm; }
 figure { margin: 2mm 0 4mm; page-break-inside: avoid; } figcaption { color: #52514e; font-size: 8.5pt; margin-top: 1mm; }
 .two { display: flex; gap: 5mm; } .two > div { flex: 1; }
 .keep { page-break-inside: avoid; } tr { page-break-inside: avoid; }
+.STRICT_ALL_IN { background: #d8f0dd; color: #0b6b22; } .BASE_RENT_COMPLIANT { background: #ffe8b3; color: #8a4b00; }
+.STRETCH { background: #fbd5d2; color: #9b1c13; }
+img.thumb { width: 24mm; height: 17mm; object-fit: cover; border-radius: 3px; display: block; }
+table.top5 td { vertical-align: middle; } table.top5 .rk { font-weight: bold; font-size: 12pt; color: #1f3a4d; }
+.lead { font-size: 10.5pt; margin: 1mm 0 2mm; }
 """
 
 
@@ -208,6 +213,44 @@ def map_svg(ranked: pd.DataFrame, top: pd.DataFrame, geo: dict | None) -> str:
 
 
 # --------------------------------------------------------------------------- document
+BUDGET_LABEL = {"STRICT_ALL_IN": "All-in ≤ USD 1,000", "BASE_RENT_COMPLIANT": "Rent ≤ USD 1,000 · total over/unknown",
+                "STRETCH": "Stretch USD 1,001–1,100"}
+
+
+def _foreign_line(r: dict) -> str:
+    level = r.get("foreign_tenant_friendliness") or "UNKNOWN"
+    if level == "UNKNOWN":
+        return ""
+    return (f'<p class="kv"><b>Foreign tenants.</b> {E(level.replace("_", " ").title())} — '
+            f'{E(str(r.get("foreign_tenant_evidence") or ""))}</p>')
+
+
+def _top5(top: pd.DataFrame, thumbs: dict) -> str:
+    rows = ""
+    for i, r in enumerate(C.records(top.head(5)), start=1):
+        img = thumbs.get(str(r.get("source_url")))
+        img_html = f"<img class='thumb' src='{img}' alt=''>" if img else ""
+        total = C.num(r.get("estimated_total_monthly_usd"))
+        if r.get("maintenance_included_in_rent") is True:
+            total = C.num(r.get("rent_usd"))
+        cost = f"{_fmt_usd(r.get('rent_usd'))} / " + (f"≈ {_fmt_usd(total)}" if total is not None else "total unknown")
+        area = C.num(r.get("area_m2"))
+        reason = str(r.get("main_advantage") or "").split("; ")[0]
+        rows += (f"<tr><td class='rk'>{i}</td><td>{img_html}</td>"
+                 f"<td><a href='{E(str(r.get('source_url')))}'>{E(C.property_label(r))}</a></td>"
+                 f"<td class='nw'>{E(cost)}<br><span class='pill {E(str(r.get('budget_class')))}' style='font-size:7pt'>"
+                 f"{E(BUDGET_LABEL.get(r.get('budget_class'), ''))}</span></td>"
+                 f"<td class='num'>{int(C.num(r.get('bedrooms')) or 0)}</td>"
+                 f"<td class='num nw'>{f'{area:.0f} m²' if area else 'UNKNOWN'}</td>"
+                 f"<td>{E(C.furnished_text(r))}</td>"
+                 f"<td><span class='pill {E(str(r.get('noise_risk')))}'>{E(str(r.get('noise_risk')))}</span></td>"
+                 f"<td>{E(reason)}</td><td class='nw'><a href='{E(str(r.get('source_url')))}'>View ↗</a></td></tr>")
+    if not rows:
+        return "<p class='muted'>No budget-compliant listings available in this run.</p>"
+    return ("<table class='top5'><tr><th>#</th><th></th><th>Property</th><th>Rent / total</th><th class='num'>BR</th>"
+            "<th class='num'>Area</th><th>Furnished</th><th>Noise</th><th>Best reason</th><th></th></tr>" + rows + "</table>")
+
+
 def _card(i: int, r: dict) -> str:
     risk = r.get("noise_risk") or "UNKNOWN"
     links = [f'<a href="{E(r["source_url"])}">View listing ↗</a>'] if r.get("source_url") else []
@@ -230,11 +273,14 @@ def _card(i: int, r: dict) -> str:
   <div class="head"><h3><span class="rank">{i}</span>{E(C.property_label(r))}</h3>
   <span class="fit">Fit {C.num(r.get('fit_score')):.0f}/100 · {E(C.sources_text(r))}</span></div>
   <div class="facts">{facts_html}</div>
+  <p class="kv"><b>Budget.</b> <span class="pill {E(str(r.get('budget_class')))}">{E(BUDGET_LABEL.get(r.get('budget_class'), str(r.get('budget_class'))))}</span>
+     {E(str(r.get('budget_note') or ''))}</p>
   <p class="kv"><b>Why it matches.</b> {E(why_matches(r))}</p>
   <p class="kv"><b>Main drawback.</b> {E(str(r.get('main_drawback') or ''))}</p>
   <p class="kv"><b>Noise.</b> <span class="pill {E(risk)}">{E(risk)} · {r.get('quietness_score_0_100')}/100</span>
      {E(str(r.get('quietness_reason') or ''))}</p>
   <p class="kv"><b>Contact.</b> {E(C.contact_text(r))}</p>
+  {_foreign_line(r)}
   <div class="foot"><span class="muted">{E(_availability(r))}</span><span class="links">{' '.join(links)}</span></div>
 </div>"""
 
@@ -250,7 +296,8 @@ def _mini_table(rows: pd.DataFrame, cols: list[tuple[str, callable, bool]]) -> s
 
 
 def build_report_html(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict | None,
-                      banner: str | None = None) -> str:
+                      banner: str | None = None, thumbs: dict | None = None) -> str:
+    thumbs = thumbs or {}
     ranked = ranked.copy()
     ranked["_key"] = ranked["source"].astype(str) + ":" + ranked["source_listing_id"].astype(str)
     primary = ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category")
@@ -258,9 +305,12 @@ def build_report_html(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], 
     stretch = ranked[ranked["category"] == "STRETCH"].sort_values("rank_in_category")
     in_scope = ranked[ranked["category"].isin(["PRIMARY", "STRETCH"])]
 
+    bc = primary["budget_class"].value_counts().to_dict() if "budget_class" in primary else {}
     tiles = "".join(f"<div class='tile'><div class='label'>{E(k)}</div><div class='value'>{v}</div></div>" for k, v in (
-        ("Listings collected", f"{meta['n_raw']:,}"), ("Unique after de-duplication", f"{meta['n_unique']:,}"),
-        ("Budget-compliant Miraflores matches", f"{meta['n_primary']:,}"), ("Stretch (USD 1,001–1,100)", f"{meta['n_stretch']:,}")))
+        ("Unique listings screened", f"{meta['n_unique']:,}"),
+        ("All-in ≤ USD 1,000", f"{bc.get('STRICT_ALL_IN', 0):,}"),
+        ("Rent ≤ USD 1,000, total over or unknown", f"{bc.get('BASE_RENT_COMPLIANT', 0):,}"),
+        ("Stretch (rent USD 1,001–1,100)", f"{meta['n_stretch']:,}")))
 
     src_rows = "".join(
         f"<tr><td>{E(a['Source'])}</td><td>{E(a['Status'])}</td><td>{E(a['Method'])}</td>"
@@ -337,7 +387,11 @@ def build_report_html(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], 
 <title>Miraflores Rental Shortlist</title><style>{CSS}</style></head><body>
 {f'<div class="banner">{E(banner)}</div>' if banner else ''}
 <h1>Miraflores Rental Shortlist</h1>
-<p class="sub">Executive report · generated {E(meta['generated_at'])} · for a couple relocating to Lima</p>
+<p class="sub">Executive report · generated {E(meta['generated_at'])} · prepared for a couple living in Lima</p>
+<h2 style="margin-top:3mm">Contact these first</h2>
+<p class="lead">The five strongest matches: 1–2 bedrooms, inside Miraflores, rent at or below USD 1,000, ranked for quiet,
+space and value. Green budget badges mean the all-in monthly cost (rent + maintenance) is within USD 1,000.</p>
+{_top5(top, thumbs)}
 <div class="tiles">{tiles}</div>
 <p>This report ranks 1–2 bedroom apartments for rent inside the Miraflores district at or below USD 1,000 per month,
 favouring quiet streets, usable space and value. Every figure comes from the listings themselves or from
@@ -349,7 +403,9 @@ each card states when it was last seen or checked.</p>
 <table>
 <tr><th style="width:28%">Criterion</th><th>Applied as</th></tr>
 <tr><td>Location</td><td>Miraflores district only (district outline from OpenStreetMap where coordinates exist). Other districts only in “Near misses”.</td></tr>
-<tr><td>Budget</td><td>Base rent ≤ USD 1,000 (hard). Preferred: rent + maintenance ≤ USD 1,000 (flagged when exceeded). USD 1,001–1,100 kept separately as “Stretch”.</td></tr>
+<tr><td>Budget</td><td>Base rent ≤ USD 1,000 (hard), shown in three classes that are never mixed: <b>All-in ≤ USD 1,000</b>
+(rent + known maintenance) · <b>Rent ≤ USD 1,000, total over or unknown</b> · <b>Stretch</b> (rent USD 1,001–1,100,
+listed separately). All-in units are preferred; a rent-only unit ranks above one only with a clearly higher fit.</td></tr>
 <tr><td>Size</td><td>1 or 2 bedrooms; studios excluded unless the listing itself classifies the unit as 1 bedroom.</td></tr>
 <tr><td>Priorities</td><td>Quiet (25 pts) · budget (20) · space (20) · daily livability (10) · move-in readiness (8) · building/security (7) · listing quality (10).</td></tr>
 <tr><td>Nice to have</td><td>Furnished, natural light, security, laundry, balcony, parking — scored as bonuses, never required.</td></tr>

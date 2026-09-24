@@ -39,7 +39,8 @@ def _link(label: str, url: str | None):
 
 def _write_table(ws, title: str, subtitle: str, cols: list[Col], rows: list[dict], banner: str | None,
                  start_row: int = 1, freeze_col: int = 3, cf: Callable | None = None,
-                 comments: Callable[[dict, str], str | None] | None = None) -> None:
+                 comments: Callable[[dict, str], str | None] | None = None, zebra: bool = True,
+                 styler: Callable | None = None) -> None:
     r0 = start_row
     ws.cell(r0, 1, title).font = TITLE_FONT
     ws.cell(r0 + 1, 1, subtitle).font = SUB_FONT
@@ -68,12 +69,15 @@ def _write_table(ws, title: str, subtitle: str, cols: list[Col], rows: list[dict
                 cell.font = BODY_FONT
             if fmt and isinstance(val, (int, float)):
                 cell.number_format = fmt
-            cell.alignment = WRAP if isinstance(val, str) and len(val) > 18 else TOP
+            col_w = ws.column_dimensions[get_column_letter(j)].width or 8.43
+            cell.alignment = WRAP if isinstance(val, str) and len(val) > col_w * 0.95 else TOP
             cell.border = BORDER
             if comments:
                 note = comments(row, name)
                 if note:
                     cell.comment = Comment(note, "pipeline")
+            if styler:
+                styler(cell, row, name)
     last = hdr + max(len(rows), 1)
     ref = f"A{hdr}:{get_column_letter(len(cols))}{last}"
     ws.freeze_panes = ws.cell(hdr + 1, freeze_col)
@@ -86,8 +90,9 @@ def _write_table(ws, title: str, subtitle: str, cols: list[Col], rows: list[dict
                                                        fill=PatternFill("solid", fgColor="F1F1EF")))
         if cf:
             cf(ws, hdr, last, cols)
-        ws.conditional_formatting.add(body, FormulaRule(formula=[f"MOD(ROW(),2)=0"],
-                                                        fill=PatternFill("solid", fgColor="F6F8FA")))
+        if zebra:
+            ws.conditional_formatting.add(body, FormulaRule(formula=["MOD(ROW(),2)=0"],
+                                                            fill=PatternFill("solid", fgColor="F6F8FA")))
     else:
         ws.cell(hdr + 1, 1, "No listings in this category for the current run.").font = SUB_FONT
     ws.sheet_view.zoomScale = 100
@@ -124,6 +129,15 @@ def _standard_cf(ws, hdr: int, last: int, cols: list[Col], top5: bool = False):
                 f"{col}{first}:{col}{last}",
                 CellIsRule(operator="greaterThan", formula=["1000"], fill=PatternFill("solid", fgColor="FDE2C8"),
                            font=Font(bold=True, color="9A3412"), stopIfTrue=True))
+    bc = _col_letter(cols, "Budget Class")
+    if bc:
+        rng = f"{bc}{first}:{bc}{last}"
+        ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{bc}{first}="STRICT_ALL_IN"'],
+                                                       fill=PatternFill("solid", fgColor="D8F0DD"),
+                                                       font=Font(bold=True, color="0B6B22"), stopIfTrue=True))
+        ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{bc}{first}="BASE_RENT_COMPLIANT"'],
+                                                       fill=PatternFill("solid", fgColor="FFF1CC"),
+                                                       font=Font(bold=True, color="7A5200"), stopIfTrue=True))
     fit = _col_letter(cols, "Fit Score")
     if fit:
         ws.conditional_formatting.add(f"{fit}{first}:{fit}{last}",
@@ -148,6 +162,7 @@ EXEC_COLS: list[Col] = [
     ("Monthly Rent USD", lambda r: C.num(r.get("rent_usd")), 11, USD_FMT),
     ("Maintenance", C.maintenance_text, 16, None),
     ("Estimated Total USD", lambda r: C.num(r.get("estimated_total_monthly_usd")), 11, USD_FMT),
+    ("Budget Class", lambda r: r.get("budget_class"), 16, None),
     ("Bedrooms", lambda r: int(C.num(r.get("bedrooms")) or 0), 8, "0"),
     ("Area m²", lambda r: C.num(r.get("area_m2")), 8, "0"),
     ("USD/m²", lambda r: C.num(r.get("rent_usd_per_m2")), 8, PPM2_FMT),
@@ -161,6 +176,7 @@ EXEC_COLS: list[Col] = [
     ("Deposit", C.deposit_text, 14, None),
     ("Main Advantage", lambda r: r.get("main_advantage"), 40, None),
     ("Main Drawback", lambda r: r.get("main_drawback"), 36, None),
+    ("Foreign Tenant", lambda r: r.get("foreign_tenant_friendliness") or "UNKNOWN", 14, None),
     ("Source", C.sources_text, 14, None),
     ("View Listing", lambda r: _link("View listing", r.get("source_url")), 12, None),
     ("WhatsApp", lambda r: _link("Open WhatsApp", C.whatsapp_url(r)), 14, None),
@@ -181,6 +197,8 @@ DETAIL_COLS: list[Col] = [
     ("Maintenance", C.maintenance_text, 16, None),
     ("Maintenance basis", lambda r: r.get("maintenance_pen_basis") or r.get("maintenance_usd_basis"), 11, None),
     ("Estimated Total USD", lambda r: C.num(r.get("estimated_total_monthly_usd")), 11, USD_FMT),
+    ("Budget Class", lambda r: r.get("budget_class"), 16, None),
+    ("Budget note", lambda r: r.get("budget_note"), 26, None),
     ("Bedrooms", lambda r: int(C.num(r.get("bedrooms")) or 0), 8, "0"),
     ("Bathrooms", lambda r: C.num(r.get("bathrooms")), 8, "0.#"),
     ("Area m²", lambda r: C.num(r.get("area_m2")), 8, "0"),
@@ -212,6 +230,8 @@ DETAIL_COLS: list[Col] = [
     ("Main Advantage", lambda r: r.get("main_advantage"), 40, None),
     ("Main Drawback", lambda r: r.get("main_drawback"), 36, None),
     ("Red flags", lambda r: r.get("red_flags") or "", 40, None),
+    ("Foreign Tenant", lambda r: r.get("foreign_tenant_friendliness") or "UNKNOWN", 14, None),
+    ("Foreign-tenant evidence", lambda r: r.get("foreign_tenant_evidence") or "—", 30, None),
     ("Agency / agent", lambda r: r.get("agency_name") or r.get("agent_name") or "UNKNOWN", 20, None),
     ("Phone", lambda r: r.get("phone") or "UNKNOWN", 14, None),
     ("Source", C.sources_text, 14, None),
@@ -236,6 +256,63 @@ def _records(df: pd.DataFrame, why: Callable[[dict], str] | None = None) -> list
     return rows
 
 
+def _total_cell(r: dict):
+    total = C.num(r.get("estimated_total_monthly_usd"))
+    if r.get("maintenance_included_in_rent") is True:
+        return C.num(r.get("rent_usd"))
+    return total if total is not None else "Unknown (maint. n/p)"
+
+
+def _contact_cell(r: dict):
+    wa = C.whatsapp_url(r)
+    if wa:
+        return _link("WhatsApp", wa)
+    if r.get("phone"):
+        return f"Tel. {r['phone']}"
+    return _link("Via portal", r.get("source_url"))
+
+
+def _short(text, n: int) -> str:
+    text = str(text or "")
+    return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + "…"
+
+
+CLIENT_COLS: list[Col] = [
+    ("Rank", lambda r: r["_rank"], 5, "0"),
+    ("Property", C.property_label, 25, None),
+    ("Rent", lambda r: C.num(r.get("rent_usd")), 9, USD_FMT),
+    ("Maintenance", C.maintenance_text, 13, None),
+    ("Est. Total", _total_cell, 12, USD_FMT),
+    ("Bedrooms", lambda r: int(C.num(r.get("bedrooms")) or 0), 9, "0"),
+    ("Area m²", lambda r: C.num(r.get("area_m2")) or "Unknown", 8, "0"),
+    ("Furnished", C.furnished_text, 9, None),
+    ("Noise", lambda r: f"{r.get('noise_risk')} ({str(r.get('noise_confidence') or '').lower()} conf.)", 12, None),
+    ("Why It Stands Out", lambda r: _short(r.get("main_advantage"), 120), 30, None),
+    ("Main Drawback", lambda r: _short(r.get("main_drawback"), 100), 26, None),
+    ("Listing", lambda r: _link("Open", r.get("source_url")), 7, None),
+    ("WhatsApp / Contact", _contact_cell, 14, None),
+    ("Map", lambda r: _link("Map", C.map_url(r)), 6, None),
+]
+GREEN_FILL, AMBER_FILL = PatternFill("solid", fgColor="D8F0DD"), PatternFill("solid", fgColor="FFE8B3")
+
+
+def _client_styler(cell, row: dict, col: str) -> None:
+    if col == "Est. Total":
+        strict = row.get("budget_class") == "STRICT_ALL_IN"
+        cell.fill = GREEN_FILL if strict else AMBER_FILL
+        cell.font = Font(name="Calibri", size=10, bold=True, color="0B6B22" if strict else "8A4B00")
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+    elif col == "Noise":
+        risk = str(row.get("noise_risk"))
+        colors = {"LOW": ("D8F0DD", "0B6B22"), "MEDIUM": ("FFF1CC", "7A5200"), "HIGH": ("FBD5D2", "9B1C13")}
+        if risk in colors:
+            cell.fill = PatternFill("solid", fgColor=colors[risk][0])
+            cell.font = Font(name="Calibri", size=10, bold=True, color=colors[risk][1])
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+    elif col in ("Property", "Maintenance", "Why It Stands Out", "Main Drawback", "WhatsApp / Contact", "Furnished"):
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+
 def build_workbook(path: Path, ranked: pd.DataFrame, meta: dict, audit_rows: list[dict],
                    methodology: list[tuple[str, str]], banner: str | None = None) -> Path:
     wb = Workbook()
@@ -243,9 +320,25 @@ def build_workbook(path: Path, ranked: pd.DataFrame, meta: dict, audit_rows: lis
     primary = ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category")
     top_n, alt_n = meta["top_n"], meta["alternatives_max"]
 
-    # 1. EXECUTIVE_SHORTLIST
+    # 0. CLIENT_TOP_PICKS — the simple view for the client
     ws = wb.active
-    ws.title = "EXECUTIVE_SHORTLIST"
+    ws.title = "CLIENT_TOP_PICKS"
+    picks = []
+    for k, r in enumerate(C.records(primary.head(top_n)), start=1):
+        r["_rank"] = k
+        picks.append(r)
+    _write_table(ws, "Top 10 apartments to contact first — Miraflores, rent ≤ USD 1,000",
+                 "Est. Total: green = rent + maintenance ≤ USD 1,000 · amber = rent within budget but the total is above "
+                 "USD 1,000 or maintenance is not published. Noise is an estimate — visit at rush hour and at night. "
+                 f"{stamp}.", CLIENT_COLS, picks, banner, freeze_col=3, zebra=False, styler=_client_styler,
+                 comments=lambda r, c: (r.get("budget_note") if c == "Est. Total" else _rent_comment(r, "Monthly Rent USD")
+                                        if c == "Rent" else None))
+    ws.sheet_view.zoomScale = 90
+    ws.row_dimensions[2].height = 28
+    ws.cell(2, 1).alignment = Alignment(wrap_text=False, vertical="top")
+
+    # 1. EXECUTIVE_SHORTLIST
+    ws = wb.create_sheet("EXECUTIVE_SHORTLIST")
     exec_rows = []
     for k, r in enumerate(C.records(primary.head(top_n + alt_n)), start=1):
         r["_tier"] = "TOP 10" if k <= top_n else "ALTERNATIVE"

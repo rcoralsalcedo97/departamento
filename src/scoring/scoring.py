@@ -8,6 +8,7 @@ from datetime import date
 import pandas as pd
 
 from ..normalize.text_signals import fold
+from ..normalize.foreign_tenant import assess_foreign_tenant
 from .noise import assess_noise
 
 APARTMENT_WORDS = ("departamento", "depa", "apartment", "flat", "penthouse", "duplex", "dúplex", "loft",
@@ -52,9 +53,35 @@ def space_band(beds: int | None, area: float | None, cfg: dict) -> str:
 
 
 # --------------------------------------------------------------------------- gates
+DEMO_FIELD_RX = re.compile(r"\bdemo\b|\(demo|ejemplo|synthetic|sint[eé]tic|\bfake\b|lorem ipsum", re.I)
+DEMO_TEXT_RX = re.compile(r"\(demo|synthetic|lorem ipsum|fake listing", re.I)   # "por ejemplo" is normal Spanish
+DEMO_HOSTS = ("example.com", "example.org", "example.net", "localhost")
+
+
+def integrity_issues(row: dict) -> list[str]:
+    """Production data-integrity guard: a record must look like a real, reachable portal listing."""
+    issues = []
+    url = str(row.get("source_url") or "")
+    if not url.startswith("http"):
+        issues.append("no listing URL")
+    elif any(h in url.lower() for h in DEMO_HOSTS):
+        issues.append("demo/example URL")
+    for field in ("title", "address", "agency_name", "agent_name", "source_listing_id", "source_url"):
+        if DEMO_FIELD_RX.search(str(row.get(field) or "")):
+            issues.append(f"demo marker in {field}")
+            break
+    if DEMO_TEXT_RX.search(str(row.get("description") or "")):
+        issues.append("demo marker in description")
+    if row.get("rent_usd") is None:
+        issues.append("rent missing")
+    return issues
+
+
 def classify(row: dict, cfg: dict) -> tuple[str, list[str], list[str]]:
     """Return (category, exclusion_reasons, gate_flags). Category ∈ PRIMARY, STRETCH, NEAR_MISS_CANDIDATE, EXCLUDED."""
     reasons, flags = [], []
+    if cfg.get("_production"):
+        reasons += [f"INTEGRITY: {x}" for x in integrity_issues(row)]
     op = fold(str(row.get("operation") or ""))
     if op and not any(k in op for k in ("alquiler", "rent", "arriendo")):
         reasons.append(f"operation is '{row.get('operation')}', not rent")
@@ -115,6 +142,28 @@ def classify(row: dict, cfg: dict) -> tuple[str, list[str], list[str]]:
     if rent <= cfg["budget"]["stretch_max_rent"]:
         return "STRETCH", [], flags
     return "EXCLUDED", [f"rent USD {rent:.0f} above stretch ceiling"], flags
+
+
+# --------------------------------------------------------------------------- budget classes
+def budget_class(row: dict, cfg: dict) -> tuple[str, str]:
+    """STRICT_ALL_IN (rent + known maintenance ≤ target) · BASE_RENT_COMPLIANT (rent ≤ target, total over or
+    unknown) · STRETCH (rent in the stretch band) · OVER_BUDGET. Never presented as equivalent."""
+    rent = _num(row.get("rent_usd"))
+    if rent is None:
+        return "UNKNOWN", "rent unknown"
+    tgt, stretch = cfg["budget"]["target_max_rent"], cfg["budget"]["stretch_max_rent"]
+    total = _num(row.get("estimated_total_monthly_usd"))
+    if row.get("maintenance_included_in_rent") is True:
+        total = rent
+    if rent <= tgt:
+        if total is not None and total <= cfg["budget"]["target_max_total"]:
+            return "STRICT_ALL_IN", f"all-in ≈ USD {total:,.0f}"
+        if total is not None:
+            return "BASE_RENT_COMPLIANT", f"rent within budget but total ≈ USD {total:,.0f} (over USD {tgt:,.0f})"
+        return "BASE_RENT_COMPLIANT", "rent within budget; maintenance not published — total unknown"
+    if rent <= stretch:
+        return "STRETCH", f"rent USD {rent:,.0f} (stretch)"
+    return "OVER_BUDGET", f"rent USD {rent:,.0f}"
 
 
 # --------------------------------------------------------------------------- components
@@ -389,6 +438,9 @@ def score_all(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         row.update({"category": cat, "exclusion_reason": "; ".join(excl), "space_band": band,
                     "area_m2": area, "area_basis": basis, "location_notes": loc_notes,
                     "fit_score": round(sum(comp.values()), 1)})
+        row["budget_class"], row["budget_note"] = budget_class(row, cfg)
+        row["foreign_tenant_friendliness"], row["foreign_tenant_evidence"] = assess_foreign_tenant(
+            row.get("title"), row.get("description"), row.get("furnished"), row.get("minimum_contract_months"))
         row["red_flags"] = "; ".join(red_flags(row, cfg, gate_flags + noise["_noise_flags"]))
         rows.append(row)
     out = pd.DataFrame(rows)
@@ -422,8 +474,11 @@ def score_all(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     return out
 
 
-def rank(df: pd.DataFrame) -> pd.DataFrame:
-    """Canonical records only; hard gates first, then fit score, then lower total cost."""
+def rank(df: pd.DataFrame, strict_margin: float = 5.0) -> pd.DataFrame:
+    """Canonical records only; hard gates first, then fit score, then lower total cost.
+
+    STRICT_ALL_IN units get ``strict_margin`` extra ranking points (not fit points), so a
+    BASE_RENT_COMPLIANT unit only outranks one when its fit is clearly superior."""
     canon = df[df["is_canonical"]].copy()
     total = canon["estimated_total_monthly_usd"] if "estimated_total_monthly_usd" in canon else canon["rent_usd"]
     canon["_cost"] = total.fillna(canon["rent_usd"])
@@ -432,6 +487,11 @@ def rank(df: pd.DataFrame) -> pd.DataFrame:
     # Quiet is the client's first priority: a unit with HIGH estimated noise (and a location good enough to
     # trust that estimate) ranks after every LOW/MEDIUM unit in its category, whatever its fit score.
     canon["_loud"] = ((canon["noise_risk"] == "HIGH") & canon["noise_confidence"].isin(["HIGH", "MEDIUM"])).astype(int)
-    canon = canon.sort_values(["_cat", "_loud", "fit_score", "_cost"], ascending=[True, True, False, True])
+    strict = canon["budget_class"] == "STRICT_ALL_IN" if "budget_class" in canon else False
+    canon["_strict"] = strict.astype(int) if strict is not False else 0
+    canon["_rank_score"] = canon["fit_score"] + canon["_strict"] * strict_margin
+    # ties go to the known all-in cost, then to the cheaper unit
+    canon = canon.sort_values(["_cat", "_loud", "_rank_score", "_strict", "_cost"],
+                              ascending=[True, True, False, False, True])
     canon["rank_in_category"] = canon.groupby("category").cumcount() + 1
-    return canon.drop(columns=["_cost", "_cat", "_loud"])
+    return canon.drop(columns=["_cost", "_cat", "_loud", "_rank_score", "_strict"])

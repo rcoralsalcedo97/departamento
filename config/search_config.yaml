@@ -22,6 +22,9 @@ budget:
   currency: USD
   target_max_rent: 1000        # principal budget (base rent)
   target_max_total: 1000       # preferred ceiling for rent + maintenance
+  # A BASE_RENT_COMPLIANT unit (total unknown or > 1,000) must beat a STRICT_ALL_IN unit by more than
+  # this many fit points to be ranked above it.
+  strict_preference_margin: 5
   stretch_max_rent: 1100       # 1,001–1,100 → STRETCH_NEGOTIABLE sheet only
   # Portal-side price ceiling. Slightly above stretch so PEN-priced listings converted by
   # the portal at a different rate are not lost. Every record is re-validated after extraction.
@@ -147,39 +150,50 @@ shortlist:
 cost_control:
   max_external_usd: 5.00         # hard ceiling for paid scraping in one full run
   validation_max_items: 15       # Gate 2: 10–20 records per source
+  full_budget_share: 0.85        # fraction of the remaining budget the full run may commit (rest = QA re-checks)
+  target_valid_unique: 30        # stop scaling up once this many valid unique candidates are expected
 
 sources:
   urbania:
     enabled: true
     method: apify
     actor_id: scrapers_lat/urbania-scraper
-    full_max_items: 400
+    full_max_items: 160            # upper bound; the run budget scales it down (see cost_control)
+    # Portal-side filters use Urbania's own URL grammar (verified in its search index, Sep 2026):
+    # bedroomsNumber, priceMax, currencyId=2 (USD). Every record is re-validated after extraction.
+    start_urls:
+      - https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=1&priceMax=1150&currencyId=2
+      - https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=2&priceMax=1150&currencyId=2
+    # Used verbatim only if the actor's input schema cannot be read.
     input:
       startUrls:
-        - url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima
+        - url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=1&priceMax=1150&currencyId=2
+        - url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=2&priceMax=1150&currencyId=2
       withDetails: true
       priceCurrency: USD
       maxPrice: 1150
       minBedrooms: 1
       maxBedrooms: 2
-    # Used only when no APIFY_TOKEN is present. Stops immediately on any bot challenge.
-    direct_fallback_url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima
     base_url: https://urbania.pe
 
   adondevivir:
     enabled: true
     method: apify
     actor_id: scrapers_lat/adondevivir-scraper
-    full_max_items: 400
+    full_max_items: 120
+    # Bedroom-filtered pages (verified in the search index); price filtered by actor input where supported.
+    start_urls:
+      - https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-1-dormitorio.html
+      - https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-2-dormitorios.html
     input:
       startUrls:
-        - url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html
+        - url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-1-dormitorio.html
+        - url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-2-dormitorios.html
       withDetails: true
       priceCurrency: USD
       maxPrice: 1150
       minBedrooms: 1
       maxBedrooms: 2
-    direct_fallback_url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html
     base_url: https://www.adondevivir.com
 
   mercadolibre:

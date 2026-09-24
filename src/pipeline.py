@@ -25,13 +25,15 @@ from .http_client import PoliteClient, probe
 from .models import Listing
 from .normalize.currency import FxRate, fetch_fx
 from .normalize.normalize import normalize_listing
-from .qa.qa import run_qa
+from .qa.final_qa import final_qa
+from .qa.qa import RECHECK_FIELDS, LiveRechecker, run_qa
 from .reporting import common as C
 from .reporting.contact_templates import write_contact_templates
 from .reporting.excel import build_workbook
 from .reporting.report import build_report_html, html_to_pdf
 from .runlog import RunLog
 from .scoring.scoring import rank, score_all
+from .sources.apify_client import ApifyAuth, resolve_apify_auth
 from .sources.base import CostBudget, SourceResult, now_iso
 from .sources.manual import collect_manual
 from .sources.mercadolibre import collect_mercadolibre
@@ -41,11 +43,15 @@ from .sources.registry import CANDIDATES, REFERENCE_REPO_AUDIT, REGISTRY, RESEAR
 PROBES = {
     "api.apify.com": "https://api.apify.com/v2/",
     "urbania.pe": "https://urbania.pe/",
+    "www.urbania.pe": "https://www.urbania.pe/",
+    "adondevivir.com": "https://adondevivir.com/",
     "www.adondevivir.com": "https://www.adondevivir.com/",
     "inmuebles.mercadolibre.com.pe": "https://inmuebles.mercadolibre.com.pe/",
+    "departamento.mercadolibre.com.pe": "https://departamento.mercadolibre.com.pe/",
     "overpass-api.de": "https://overpass-api.de/api/status",
     "nominatim.openstreetmap.org": "https://nominatim.openstreetmap.org/status",
     "estadisticas.bcrp.gob.pe": "https://estadisticas.bcrp.gob.pe/",
+    "www.sunat.gob.pe": "https://www.sunat.gob.pe/",
 }
 COVERAGE_FIELDS = [
     ("URL", ["source_url"]), ("rent", ["rent_original"]), ("currency", ["rent_currency"]),
@@ -88,6 +94,47 @@ def source_status(res: SourceResult, cov: dict[str, float]) -> str:
     return "PARTIAL"
 
 
+def validation_row(name: str, res: SourceResult) -> dict:
+    ls = res.listings
+    n = len(ls)
+
+    def pct(pred) -> str:
+        return f"{100 * sum(1 for x in ls if pred(x)) / n:.0f}%" if n else "—"
+    return {
+        "SOURCE": name,
+        "ACTOR / METHOD": res.method,
+        "RECORDS": n,
+        "VALID RENT %": pct(lambda x: x.rent_original and x.rent_currency in ("USD", "PEN") and 150 <= x.rent_original <= 60000),
+        "VALID BEDROOMS %": pct(lambda x: x.bedrooms is not None and 0 <= x.bedrooms <= 10),
+        "VALID AREA %": pct(lambda x: any(a and 12 <= a <= 400 for a in (x.built_area_m2, x.total_area_m2))),
+        "MAINTENANCE %": pct(lambda x: x.maintenance_fee is not None or x.maintenance_included_in_rent is True),
+        "COORDINATES %": pct(lambda x: x.latitude is not None),
+        "CONTACT %": pct(lambda x: bool(x.phone or x.whatsapp)),
+        "DATE %": pct(lambda x: bool(x.publication_date)),
+        "ERRORS": "; ".join(res.errors)[:160] or "—",
+        "COST": f"USD {res.cost_usd:.3f}",
+    }
+
+
+def md_table(rows: list[dict]) -> list[str]:
+    if not rows:
+        return []
+    cols = list(rows[0])
+    out = ["| " + " | ".join(cols) + " |", "|" + "|".join("---" for _ in cols) + "|"]
+    out += ["| " + " | ".join(str(r[c]).replace("|", "/") for c in cols) + " |" for r in rows]
+    return out
+
+
+def validation_ok(res: SourceResult) -> bool:
+    """Proceed to full extraction only if the sample is usable."""
+    ls = res.listings
+    if len(ls) < 5:
+        return False
+    ok = lambda pred: sum(1 for x in ls if pred(x)) / len(ls)   # noqa: E731
+    return (ok(lambda x: bool(x.source_url)) >= 0.9 and ok(lambda x: bool(x.rent_original and x.rent_currency)) >= 0.8
+            and ok(lambda x: x.bedrooms is not None) >= 0.7)
+
+
 def _pct(x: float) -> str:
     return f"{x * 100:.0f}%"
 
@@ -101,10 +148,11 @@ def save_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
 
 
-def collect(name: str, cfg: dict, http: PoliteClient, budget: CostBudget, mode: str, token: str | None) -> SourceResult:
+def collect(name: str, cfg: dict, http: PoliteClient, budget: CostBudget, mode: str, auth,
+            max_items: int | None = None) -> SourceResult:
     scfg = cfg["sources"][name]
     if name in ("urbania", "adondevivir"):
-        return collect_navent(name, scfg, cfg, http, budget, mode, token)
+        return collect_navent(name, scfg, cfg, http, budget, mode, auth, max_items)
     if name == "mercadolibre":
         return collect_mercadolibre(scfg, cfg, http, mode)
     if name == "manual":
@@ -114,12 +162,11 @@ def collect(name: str, cfg: dict, http: PoliteClient, budget: CostBudget, mode: 
 
 # --------------------------------------------------------------------------- gates
 def gate0_preflight(cfg: dict, log: RunLog) -> dict[str, tuple[bool, str]]:
-    token = K.apify_token()
+    """One HEAD request per host. PASS = the network path works (any HTTP status, including a site's own
+    bot-protection 403); FAIL = the connection itself was refused (e.g. egress policy) or timed out."""
     probes = {host: probe(url) for host, url in PROBES.items()}
-    lines = [f"APIFY token: {'present (value not logged)' if token else 'NOT SET — add APIFY_TOKEN to .env'}",
-             f"Google Maps key: {'present' if __import__('os').environ.get('GOOGLE_MAPS_API_KEY') else 'not set (not required)'}"]
-    lines += [f"{host}: {'reachable' if ok else 'UNREACHABLE'} — {msg}" for host, (ok, msg) in probes.items()]
-    log.section("Gate 0 — environment & credentials", lines)
+    lines = [f"{'PASS' if ok else 'FAIL'}  {host} — {msg}" for host, (ok, msg) in probes.items()]
+    log.section("Gate 0 — network preflight (one small request per host)", lines)
     return probes
 
 
@@ -196,8 +243,17 @@ def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]
         ("Fit score (100)", f"Quietness {s['quietness']} · Budget/total cost {s['budget']} · Space/layout {s['space']} · "
                             f"Location/daily livability {s['location']} · Furnishing {s['furnishing']} · "
                             f"Building/security/amenities {s['building']} · Listing quality/freshness {s['listing_quality']}."),
+        ("Budget classes", "STRICT_ALL_IN = rent + known maintenance ≤ USD 1,000 · BASE_RENT_COMPLIANT = rent ≤ USD 1,000 "
+                           "but the total is above USD 1,000 or unknown (maintenance not published) · STRETCH = rent "
+                           f"USD 1,001–1,100 (separate sheet). Ranking gives STRICT_ALL_IN a {cfg['budget']['strict_preference_margin']}-point "
+                           "preference, so a BASE_RENT_COMPLIANT unit only ranks above it with a clearly higher fit."),
         ("Budget points", "Full points need a known total (rent + maintenance) ≤ USD 1,000; lower totals score higher. "
                           "Unknown maintenance is scored on rent only and capped below a known total, and flagged."),
+        ("Foreign-tenant friendliness", "Evidence from listing text only: HIGH (foreigners/passport/corporate lease "
+                                        "explicitly welcome), MEDIUM (temporary stays, no guarantor, English listing, "
+                                        "furnished + utilities), POTENTIAL_FRICTION (asks for a Peruvian guarantor, carné "
+                                        "de extranjería or DNI), UNKNOWN (silent — the normal case, never penalised). "
+                                        "Not part of the fit score; no legal assumptions."),
         ("Space points", "Area bands per bedroom count (1BR: <40 small, 40–49 acceptable, 50–59 good, ≥60 very spacious; "
                          "2BR: <55, 55–69, 70–84, ≥85). Built (techada) area preferred over total area. Bonuses: 2nd "
                          "bathroom, balcony/terrace, study, laundry, walk-in closet."),
@@ -218,7 +274,8 @@ def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]
                             "proximity to the boundary. Portal price filter set to USD 1,150 (not 1,000) so the "
                             "stretch band and PEN-priced listings are not lost; every record is re-validated. "
                             "Ranking rule: units with HIGH estimated noise (medium/high confidence) are ranked after "
-                            "all LOW/MEDIUM units, because quiet is the first priority."),
+                            "all LOW/MEDIUM units, because quiet is the first priority; with LOW confidence (approximate "
+                            "or missing location) no demotion is applied."),
         ("Livability", "Distance to supermarket (≤500 m), pharmacy (≤400 m), park (≤300 m), café (≤300 m), bus/"
                        "Metropolitano stop (≤400 m), Malecón (≤900 m); half credit up to 1.6× those distances. "
                        "Nightlife is never rewarded."),
@@ -252,57 +309,10 @@ def enrich_geo(df: pd.DataFrame, layers: OsmLayers | None, cfg: dict) -> pd.Data
     return pd.concat([df.drop(columns=[c for c in geo.columns if c in df.columns]), geo], axis=1)
 
 
-def final_audit(ranked: pd.DataFrame, xlsx: Path, pdf: Path, cfg: dict, token: str | None, top_n: int) -> list[str]:
-    from openpyxl import load_workbook
-    top = ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category").head(top_n)
-    res = []
-
-    def check(ok: bool, label: str, detail: str = "") -> None:
-        res.append(f"[{'x' if ok else ' '}] {label}" + (f" — {detail}" if detail else ""))
-
-    check(all(str(u).startswith("http") for u in top["source_url"]), "Every Top 10 listing URL is clickable",
-          f"{len(top)} rows")
-    in_mf = [(r["district"] == cfg["location"]["district"]) or (r.get("inside_district_polygon") is True)
-             for r in top.to_dict("records")]
-    check(all(in_mf), "All Top 10 are in Miraflores")
-    check(top["bedrooms"].isin([1, 2]).all(), "All Top 10 have 1 or 2 bedrooms")
-    check((top["rent_usd"] <= cfg["budget"]["target_max_rent"]).all(), "Budget status correct (rent ≤ USD 1,000)")
-    mix = top[(top["maintenance_usd"].notna()) & (top["maintenance_usd"] >= top["rent_usd"] * 0.6)]
-    check(mix.empty, "Rent and maintenance not mixed", f"{len(mix)} suspicious" if len(mix) else "")
-    check(top["rent_usd_basis"].notna().all() and top["fx_rate_usd_pen"].notna().all(), "Currency conversion traceable")
-    check(ranked["duplicate_group_id"].notna().all(), "Duplicates grouped",
-          f"{ranked['duplicate_group_id'].nunique()} groups")
-    check(top["quietness_reason"].str.len().gt(0).all() and top["noise_confidence"].notna().all(),
-          "Noise claims include evidence + confidence")
-    check(True, "Unknown fields not fabricated", "UNKNOWN shown; no imputation code paths")
-    try:
-        wb = load_workbook(xlsx)
-        links = sum(1 for ws in wb for row in ws.iter_rows() for c in row if c.hyperlink)
-        check(set(["EXECUTIVE_SHORTLIST", "ALL_MATCHES", "STRETCH_NEGOTIABLE", "NEAR_MISSES", "SOURCE_AUDIT",
-                   "METHODOLOGY", "CONTACT_GUIDE"]) <= set(wb.sheetnames), "Excel opens correctly",
-              f"{len(wb.sheetnames)} sheets, {links} hyperlinks")
-    except Exception as exc:  # noqa: BLE001
-        check(False, "Excel opens correctly", str(exc))
-    qa_ok = top["qa_status"].isin(["VERIFIED_ACTIVE", "ACTIVE_WITH_DIFFERENCES"]).sum()
-    check(qa_ok == len(top) and len(top) > 0, "Links work (Top 10 re-opened)", f"{qa_ok}/{len(top)} verified live")
-    pages = len(re.findall(rb"/Type\s*/Page[^s]", pdf.read_bytes())) if pdf.exists() else 0
-    check(pages > 0, "PDF renders", f"{pages} pages")
-    check(True, "Report understandable without code", "plain-English sections + methodology")
-    leaked = []
-    for p in list(K.ROOT.glob("*.md")) + list(K.OUTPUTS.glob("*")) + list((K.ROOT / "config").glob("*")):
-        if p.is_file() and p.suffix in (".md", ".txt", ".yaml", ".csv", ".html"):
-            txt = p.read_text(encoding="utf-8", errors="ignore")
-            if re.search(r"apify_api_[A-Za-z0-9]{20,}", txt) or (token and token in txt):
-                leaked.append(p.name)
-    check(not leaked, "No credentials in files", ", ".join(leaked))
-    check(True, "No unnecessary private data", "only advertiser business contacts from public listings; raw "
-                                              "payloads git-ignored")
-    return res
-
-
 # --------------------------------------------------------------------------- main flow
 def process(listings: list[Listing], cfg: dict, fx: FxRate, http: PoliteClient | None, layers: OsmLayers | None,
-            log: RunLog, live_qa: bool, geocode: bool, persist: bool = True) -> pd.DataFrame:
+            log: RunLog, live_qa: bool, geocode: bool, persist: bool = True, auth: ApifyAuth | None = None,
+            budget: CostBudget | None = None) -> pd.DataFrame:
     norm = [normalize_listing(lst, cfg, fx) for lst in listings]
     df = pd.DataFrame([n.model_dump() for n in norm])
     if df.empty:
@@ -337,7 +347,7 @@ def process(listings: list[Listing], cfg: dict, fx: FxRate, http: PoliteClient |
     qa_cols = ["qa_status", "qa_notes", "qa_checked_at", "active_status", "active_evidence"]
     for col in qa_cols[:3]:
         df[col] = None
-    ranked = rank(score_all(df, cfg))
+    ranked = rank(score_all(df, cfg), cfg["budget"]["strict_preference_margin"])
     counts = ranked["category"].value_counts().to_dict()
     log.section("Gate 7 — score & rank", [f"{k}: {v}" for k, v in counts.items()] + [
         "top exclusion reasons: " + "; ".join(f"{k} ({v})" for k, v in
@@ -346,11 +356,13 @@ def process(listings: list[Listing], cfg: dict, fx: FxRate, http: PoliteClient |
 
     # QA can demote a Top-10 listing (e.g. found inactive); re-score and re-check until the Top 10 is stable
     manual_qa = K.PROCESSED / "manual_qa.csv"
+    rechecker = LiveRechecker(http, auth, cfg, budget or CostBudget(0), fx) if (live_qa and http is not None) else None
+    copy_cols = qa_cols + [c for c in RECHECK_FIELDS if c in df.columns]
     for _ in range(4):
         before = list(ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category").head(10).index)
-        ranked = run_qa(ranked, cfg, http, manual_qa, live=live_qa and http is not None)
-        df.loc[ranked.index, qa_cols] = ranked[qa_cols]
-        ranked = rank(score_all(df, cfg))
+        ranked = run_qa(ranked, cfg, http, manual_qa, live=live_qa and http is not None, rechecker=rechecker)
+        df.loc[ranked.index, copy_cols] = ranked[copy_cols]
+        ranked = rank(score_all(df, cfg), cfg["budget"]["strict_preference_margin"])
         after = list(ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category").head(10).index)
         if after == before:
             break
@@ -360,20 +372,41 @@ def process(listings: list[Listing], cfg: dict, fx: FxRate, http: PoliteClient |
 
 
 def deliver(ranked: pd.DataFrame, cfg: dict, fx: FxRate, meta: dict, audit_rows: list[dict],
-            layers: OsmLayers | None, out_dir: Path, banner: str | None, prefix: str = "") -> tuple[Path, Path, Path]:
+            layers: OsmLayers | None, out_dir: Path, banner: str | None, prefix: str = "", suffix: str = "",
+            http: PoliteClient | None = None) -> tuple[Path, Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    xlsx = out_dir / f"{prefix}Miraflores_Rental_Shortlist.xlsx"
-    html_path = out_dir / f"{prefix}Miraflores_Rental_Executive_Report.html"
-    pdf = out_dir / f"{prefix}Miraflores_Rental_Executive_Report.pdf"
-    txt = out_dir / f"{prefix}Contact_Templates.txt"
+    xlsx = out_dir / f"{prefix}Miraflores_Rental_Shortlist{suffix}.xlsx"
+    html_path = out_dir / f"{prefix}Miraflores_Rental_Executive_Report{suffix}.html"
+    pdf = out_dir / f"{prefix}Miraflores_Rental_Executive_Report{suffix}.pdf"
+    txt = out_dir / f"{prefix}Contact_Templates{suffix}.txt"
     build_workbook(xlsx, ranked, meta, audit_rows, methodology_rows(cfg, fx, meta), banner)
     geo = {"boundary_ll": layers.boundary_ll, "road_lines_ll": layers.road_lines_ll} if layers else None
-    html_path.write_text(build_report_html(ranked, meta, audit_rows, geo, banner), encoding="utf-8")
-    html_to_pdf(html_path, pdf, banner)
     top = ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category").head(meta["top_n"])
+    thumbs = fetch_thumbnails(top.head(5), http) if http is not None else {}
+    html_path.write_text(build_report_html(ranked, meta, audit_rows, geo, banner, thumbs), encoding="utf-8")
+    html_to_pdf(html_path, pdf, banner)
     write_contact_templates(txt, [{"_label": C.property_label(r), "_contact": C.contact_text(r), **r}
                                   for r in C.records(top)])
     return xlsx, pdf, txt
+
+
+def fetch_thumbnails(top: pd.DataFrame, http: PoliteClient) -> dict[str, str]:
+    """Small data-URI thumbnails for the page-1 Top 5. Any failure → no image (never a broken icon)."""
+    import base64
+    out = {}
+    for r in C.records(top):
+        url = r.get("main_image_url")
+        if not isinstance(url, str) or not url.startswith("http"):
+            continue
+        try:
+            resp = http.request_json("GET", url, timeout=15)
+            ctype = resp.headers.get("content-type", "")
+            if resp.status_code == 200 and ctype.startswith("image/") and len(resp.content) < 2_500_000:
+                out[str(r.get("source_url"))] = f"data:{ctype.split(';')[0]};base64," + \
+                    base64.b64encode(resp.content).decode()
+        except Exception:  # noqa: BLE001
+            continue
+    return out
 
 
 def make_meta(cfg: dict, fx: FxRate, n_raw: int, ranked: pd.DataFrame, cost: float) -> dict:
@@ -395,6 +428,29 @@ def empty_ranked() -> pd.DataFrame:
     return pd.DataFrame(columns=cols)
 
 
+def allocate_full_items(cfg: dict, val_results: dict[str, SourceResult], budget: CostBudget,
+                        apify_sources: list[str]) -> dict[str, tuple[int, str]]:
+    """Size each paid full run from the *observed* validation cost per item, within the run budget."""
+    alloc: dict[str, tuple[int, str]] = {}
+    pool = budget.remaining * cfg["cost_control"]["full_budget_share"]
+    weights = {n: cfg["sources"][n]["full_max_items"] for n in apify_sources}
+    total_w = sum(weights.values()) or 1
+    for n in apify_sources:
+        r = val_results[n]
+        cap = cfg["sources"][n]["full_max_items"]
+        cpi = (r.cost_usd / len(r.raw_records)) if r.raw_records and r.cost_usd else None
+        if cpi is None and r.audit.get("estimated_cost_usd"):
+            cpi = r.audit["estimated_cost_usd"] / max(1, cfg["cost_control"]["validation_max_items"])
+        share = pool * weights[n] / total_w
+        if cpi and cpi > 0:
+            items = max(0, min(cap, int(share / cpi)))
+            alloc[n] = (items, f"≈USD {cpi:.4f}/item observed → {items} items within USD {share:.2f}")
+        else:
+            alloc[n] = (cap, "no per-item cost observed (free or unknown) — capped by config; "
+                             "maxTotalChargeUsd still enforces the budget")
+    return alloc
+
+
 def run(mode: str, out: Path | None = None) -> int:
     K.load_dotenv()
     K.ensure_dirs()
@@ -402,14 +458,17 @@ def run(mode: str, out: Path | None = None) -> int:
     log = RunLog(K.ROOT / "RUN_LOG.md", mode)
     if mode == "demo":
         return run_demo(cfg, log, out)
+    cfg["_production"] = True          # integrity guard on: demo/synthetic records are rejected
 
     probes = gate0_preflight(cfg, log)
+    http = PoliteClient(cfg["http"]["user_agent"], cfg["http"]["timeout_s"], cfg["http"]["min_delay_s"])
+    auth = resolve_apify_auth(http)
+    log.section("Apify authentication", auth.display())
     token = K.apify_token()
     if mode == "preflight":
         log.write()
         return 0
 
-    http = PoliteClient(cfg["http"]["user_agent"], cfg["http"]["timeout_s"], cfg["http"]["min_delay_s"])
     budget = CostBudget(cfg["cost_control"]["max_external_usd"])
     fx, fx_err = fetch_fx(cfg, http)
     log.section("Exchange rate", [f"1 USD = S/ {fx.usd_pen:.3f} — {fx.source} — {fx.timestamp}"]
@@ -422,25 +481,41 @@ def run(mode: str, out: Path | None = None) -> int:
         meta = json.loads((K.PROCESSED / "meta.json").read_text(encoding="utf-8"))
         meta["generated_at"] = now_iso()
         layers = _load_layers(cfg, http, log)
-        paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None)
+        paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, suffix="_REAL", http=http)
         log.section("Gate 9 — deliverables (rebuilt)", [str(p.relative_to(K.ROOT)) for p in paths])
+        qa_lines, ok = final_qa(ranked, paths, cfg, token, http)
+        log.section("Gate 10 — final QA", qa_lines)
         log.write()
-        return 0
+        return 0 if ok else 3
 
-    # ---- Gates 1–3: audit + validation
-    enabled = [n for n, s in cfg["sources"].items() if s.get("enabled")]
+    # ---- Gates 1–3: audit + validation (10–20 records per source)
+    enabled = [n for n, sc in cfg["sources"].items() if sc.get("enabled")]
+    uses_apify = [n for n in enabled if cfg["sources"][n].get("method") == "apify"]
+    if uses_apify and not auth.available:
+        log.section("Apify NOT used — paid actors skipped", [
+            f"Reason: {auth.reason}",
+            "To enable: allow api.apify.com in the environment's network access and set APIFY_TOKEN "
+            "(in .env for local runs, or an Apify credential for cloud runs).",
+            "Urbania/Adondevivir fall back to one polite direct request each (stops at any bot challenge)."])
     val_results, cov, statuses = {}, {}, {}
     for name in enabled:
-        res = collect(name, cfg, http, budget, "validate", token)
+        res = collect(name, cfg, http, budget, "validate", auth)
         val_results[name] = res
         cov[name] = coverage(res.listings)
         statuses[name] = source_status(res, cov[name])
         save_json(K.RAW / f"{name}_validation_{res.started_at[:19].replace(':', '')}.json", res.raw_records)
-    log.section("Gates 1–3 — source audit & validation run (10–20 records/source)", [
-        f"{n}: {statuses[n]} · {len(r.listings)} records · cost USD {r.cost_usd:.2f} · "
-        f"{completeness_text(cov[n]) if r.listings else 'no records'}"
-        + (f" · errors: {'; '.join(r.errors)}" if r.errors else "") + (f" · notes: {'; '.join(r.notes)}" if r.notes else "")
-        for n, r in val_results.items()])
+    vrows = [validation_row(n, r) for n, r in val_results.items()]
+    details = []
+    for n, r in val_results.items():
+        if r.audit.get("actor_input") is not None:
+            details.append(f"{n}: actor input sent = {json.dumps(r.audit['actor_input'], ensure_ascii=False)}")
+            details.append(f"{n}: actor input schema properties = {r.audit.get('input_properties')}")
+            details.append(f"{n}: pricing = {r.audit.get('pricing')}")
+        if r.audit.get("dataset_fields"):
+            details.append(f"{n}: dataset fields (non-empty count) = {', '.join(r.audit['dataset_fields'])}")
+        if r.notes:
+            details.append(f"{n}: notes = {'; '.join(r.notes)}")
+    log.section("Gates 2–3 — validation run (10–20 records/source)", md_table(vrows) + [""] + details)
     audit_rows = build_audit_rows(val_results, cov, statuses)
     write_source_audit_md(audit_rows, probes, now_iso())
     if mode == "validate":
@@ -448,25 +523,32 @@ def run(mode: str, out: Path | None = None) -> int:
         print("\nValidation complete. Review SOURCE_AUDIT.md and RUN_LOG.md, then run --mode full.")
         return 0
 
-    # ---- Gate 4: full collection
+    # ---- Gate 4: full collection (only for sources whose validation sample is usable)
+    apify_ok = [n for n in uses_apify if auth.available and validation_ok(val_results[n])]
+    alloc = allocate_full_items(cfg, val_results, budget, apify_ok)
     results: dict[str, SourceResult] = {}
+    plan = []
     for name in enabled:
-        if not statuses[name].startswith(("APPROVED", "PARTIAL")):
-            results[name] = val_results[name]
+        vres = val_results[name]
+        if name == "manual" or not validation_ok(vres):
+            results[name] = vres
+            plan.append(f"{name}: no full run ({'manual import' if name == 'manual' else 'validation sample not usable'}); "
+                        f"{len(vres.listings)} validation records kept for screening")
             continue
-        res = collect(name, cfg, http, budget, "full", token) if name != "manual" else val_results[name]
-        if not res.listings and val_results[name].listings:
+        items = alloc.get(name, (None, "direct HTML — no cost"))[0]
+        plan.append(f"{name}: full run — {alloc.get(name, (None, 'direct HTML — no cost'))[1]}")
+        res = collect(name, cfg, http, budget, "full", auth, max_items=items)
+        if not res.listings:
             res.notes.append("full run returned nothing — validation records used instead")
-            res.listings = val_results[name].listings
+            res.listings, res.raw_records = vres.listings, vres.raw_records
         results[name] = res
         save_json(K.RAW / f"{name}_full_{res.started_at[:19].replace(':', '')}.json", res.raw_records)
     all_listings = [lst for r in results.values() for lst in r.listings]
-    cost = budget.spent
-    log.section("Gate 4 — full collection", [
-        f"{n}: {r.status} · {len(r.listings)} records · cost USD {r.cost_usd:.2f}"
+    log.section("Gate 4 — full collection", plan + [
+        f"{n}: {r.status} · {len(r.listings)} records · cost USD {r.cost_usd:.3f}"
         + (f" · errors: {'; '.join(r.errors)}" if r.errors else "") for n, r in results.items()]
-        + [f"total records: {len(all_listings)}", f"external cost this run: USD {cost:.2f} "
-                                                  f"(cap USD {budget.max_usd:.2f})"])
+        + [f"total records: {len(all_listings)}",
+           f"external cost so far: USD {budget.spent:.3f} (cap USD {budget.max_usd:.2f})"])
     audit_rows = build_audit_rows(results, {n: coverage(r.listings) for n, r in results.items()}, statuses)
     write_source_audit_md(audit_rows, probes, now_iso())
 
@@ -479,20 +561,22 @@ def run(mode: str, out: Path | None = None) -> int:
 
     layers = _load_layers(cfg, http, log)
     ranked = process(all_listings, cfg, fx, http, layers, log, live_qa=True,
-                     geocode=probes.get("nominatim.openstreetmap.org", (False,))[0])
-    meta = make_meta(cfg, fx, len(all_listings), ranked, cost)
+                     geocode=probes.get("nominatim.openstreetmap.org", (False,))[0], auth=auth, budget=budget)
+    meta = make_meta(cfg, fx, len(all_listings), ranked, budget.spent)
+    meta["by_source"] = {n: len(r.listings) for n, r in results.items()}
     K.PROCESSED.mkdir(parents=True, exist_ok=True)
     ranked.to_pickle(K.PROCESSED / "ranked.pkl")
     ranked.drop(columns=["image_keys", "text_signals", "amenities"], errors="ignore") \
         .to_csv(K.PROCESSED / "listings_ranked.csv", index=False)
     save_json(K.PROCESSED / "audit_rows.json", audit_rows)
     save_json(K.PROCESSED / "meta.json", meta)
-    xlsx, pdf, txt = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None)
-    log.section("Gate 9 — deliverables", [str(p.relative_to(K.ROOT)) for p in (xlsx, pdf, txt)])
-    log.section("Gate 10 — final audit", final_audit(ranked, xlsx, pdf, cfg, token, cfg["shortlist"]["top_n"]))
+    paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, suffix="_REAL", http=http)
+    log.section("Gate 9 — deliverables", [str(p.relative_to(K.ROOT)) for p in paths])
+    qa_lines, ok = final_qa(ranked, paths, cfg, token, http)
+    log.section("Gate 10 — final QA", qa_lines + [f"total external cost: USD {budget.spent:.3f}"])
     log.write()
     http.close()
-    return 0
+    return 0 if ok else 3
 
 
 def _load_layers(cfg: dict, http: PoliteClient, log: RunLog) -> OsmLayers | None:
@@ -519,7 +603,8 @@ def run_demo(cfg: dict, log: RunLog, out: Path | None = None) -> int:
     out = out or K.ROOT / "docs" / "preview"
     paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, out, PREVIEW_BANNER, prefix="PREVIEW_SYNTHETIC_")
     log.section("Demo deliverables", [str(p) for p in paths])
-    print("\n".join(final_audit(ranked, paths[0], paths[1], cfg, None, 10)))
+    lines, _ = final_qa(ranked, paths, cfg, None, None, production=False)
+    print("\n".join(lines))
     return 0
 
 
