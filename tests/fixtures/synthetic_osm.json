@@ -1,0 +1,565 @@
+{
+ "elements": [
+  {
+   "type": "relation",
+   "id": 1,
+   "tags": {
+    "boundary": "administrative",
+    "admin_level": "8",
+    "name": "Miraflores"
+   },
+   "members": [
+    {
+     "type": "way",
+     "role": "outer",
+     "geometry": [
+      {
+       "lat": -12.105,
+       "lon": -77.055
+      },
+      {
+       "lat": -12.105,
+       "lon": -77.01
+      },
+      {
+       "lat": -12.135,
+       "lon": -77.01
+      },
+      {
+       "lat": -12.135,
+       "lon": -77.055
+      },
+      {
+       "lat": -12.105,
+       "lon": -77.055
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 10,
+   "geometry": [
+    {
+     "lat": -12.1,
+     "lon": -77.03
+    },
+    {
+     "lat": -12.14,
+     "lon": -77.03
+    }
+   ],
+   "tags": {
+    "highway": "primary",
+    "name": "Av. Demo Arterial (DEMO)"
+   }
+  },
+  {
+   "type": "way",
+   "id": 11,
+   "geometry": [
+    {
+     "lat": -12.1,
+     "lon": -77.0195
+    },
+    {
+     "lat": -12.14,
+     "lon": -77.0195
+    }
+   ],
+   "tags": {
+    "highway": "motorway",
+    "name": "V\u00eda Demo Expresa (DEMO)"
+   }
+  },
+  {
+   "type": "way",
+   "id": 12,
+   "geometry": [
+    {
+     "lat": -12.12,
+     "lon": -77.058
+    },
+    {
+     "lat": -12.12,
+     "lon": -77.005
+    }
+   ],
+   "tags": {
+    "highway": "secondary",
+    "name": "Calle Demo Secundaria (DEMO)"
+   }
+  },
+  {
+   "type": "way",
+   "id": 13,
+   "geometry": [
+    {
+     "lat": -12.106,
+     "lon": -77.0505
+    },
+    {
+     "lat": -12.134,
+     "lon": -77.0505
+    }
+   ],
+   "tags": {
+    "highway": "residential",
+    "name": "Malec\u00f3n Demo (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 20,
+   "lat": -12.1212,
+   "lon": -77.0312,
+   "tags": {
+    "amenity": "nightclub",
+    "name": "Discoteca Demo (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 100,
+   "lat": -12.1212,
+   "lon": -77.0303,
+   "tags": {
+    "amenity": "bar",
+    "name": "Bar Demo 100 (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 101,
+   "lat": -12.1219,
+   "lon": -77.0299,
+   "tags": {
+    "amenity": "bar",
+    "name": "Bar Demo 101 (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 102,
+   "lat": -12.1208,
+   "lon": -77.0306,
+   "tags": {
+    "amenity": "bar",
+    "name": "Bar Demo 102 (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 103,
+   "lat": -12.1214,
+   "lon": -77.0296,
+   "tags": {
+    "amenity": "bar",
+    "name": "Bar Demo 103 (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 104,
+   "lat": -12.1223,
+   "lon": -77.0301,
+   "tags": {
+    "amenity": "bar",
+    "name": "Bar Demo 104 (DEMO)"
+   }
+  },
+  {
+   "type": "node",
+   "id": 105,
+   "lat": -12.1211653756837,
+   "lon": -77.03163997418747,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 105"
+   }
+  },
+  {
+   "type": "node",
+   "id": 106,
+   "lat": -12.122039929635914,
+   "lon": -77.03116429422845,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 106"
+   }
+  },
+  {
+   "type": "node",
+   "id": 107,
+   "lat": -12.120932469086005,
+   "lon": -77.03007592123019,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 107"
+   }
+  },
+  {
+   "type": "node",
+   "id": 108,
+   "lat": -12.120558769037508,
+   "lon": -77.03149134680169,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 108"
+   }
+  },
+  {
+   "type": "node",
+   "id": 109,
+   "lat": -12.121687387632754,
+   "lon": -77.03162848667336,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 109"
+   }
+  },
+  {
+   "type": "node",
+   "id": 110,
+   "lat": -12.12217526886047,
+   "lon": -77.03048714730855,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 110"
+   }
+  },
+  {
+   "type": "node",
+   "id": 111,
+   "lat": -12.122636313672759,
+   "lon": -77.03122278963835,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 111"
+   }
+  },
+  {
+   "type": "node",
+   "id": 112,
+   "lat": -12.121140277349328,
+   "lon": -77.03039214044655,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 112"
+   }
+  },
+  {
+   "type": "node",
+   "id": 113,
+   "lat": -12.122170942507102,
+   "lon": -77.0302857623587,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 113"
+   }
+  },
+  {
+   "type": "node",
+   "id": 114,
+   "lat": -12.120757366903973,
+   "lon": -77.03168440297678,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 114"
+   }
+  },
+  {
+   "type": "node",
+   "id": 115,
+   "lat": -12.1207660337956,
+   "lon": -77.03002446545203,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 115"
+   }
+  },
+  {
+   "type": "node",
+   "id": 116,
+   "lat": -12.121883398760357,
+   "lon": -77.03132684920045,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 116"
+   }
+  },
+  {
+   "type": "node",
+   "id": 117,
+   "lat": -12.120402688626703,
+   "lon": -77.03089217309173,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 117"
+   }
+  },
+  {
+   "type": "node",
+   "id": 118,
+   "lat": -12.122477409975886,
+   "lon": -77.0314678806956,
+   "tags": {
+    "amenity": "restaurant",
+    "name": "Restaurante Demo 118"
+   }
+  },
+  {
+   "type": "node",
+   "id": 119,
+   "lat": -12.11,
+   "lon": -77.04,
+   "tags": {
+    "shop": "supermarket",
+    "name": "S\u00faper Demo 119"
+   }
+  },
+  {
+   "type": "node",
+   "id": 120,
+   "lat": -12.109,
+   "lon": -77.04100000000001,
+   "tags": {
+    "amenity": "pharmacy",
+    "name": "Farmacia Demo 119"
+   }
+  },
+  {
+   "type": "node",
+   "id": 121,
+   "lat": -12.110999999999999,
+   "lon": -77.039,
+   "tags": {
+    "amenity": "cafe",
+    "name": "Caf\u00e9 Demo 119"
+   }
+  },
+  {
+   "type": "node",
+   "id": 122,
+   "lat": -12.125,
+   "lon": -77.045,
+   "tags": {
+    "shop": "supermarket",
+    "name": "S\u00faper Demo 122"
+   }
+  },
+  {
+   "type": "node",
+   "id": 123,
+   "lat": -12.124,
+   "lon": -77.046,
+   "tags": {
+    "amenity": "pharmacy",
+    "name": "Farmacia Demo 122"
+   }
+  },
+  {
+   "type": "node",
+   "id": 124,
+   "lat": -12.126,
+   "lon": -77.044,
+   "tags": {
+    "amenity": "cafe",
+    "name": "Caf\u00e9 Demo 122"
+   }
+  },
+  {
+   "type": "node",
+   "id": 125,
+   "lat": -12.13,
+   "lon": -77.025,
+   "tags": {
+    "shop": "supermarket",
+    "name": "S\u00faper Demo 125"
+   }
+  },
+  {
+   "type": "node",
+   "id": 126,
+   "lat": -12.129000000000001,
+   "lon": -77.02600000000001,
+   "tags": {
+    "amenity": "pharmacy",
+    "name": "Farmacia Demo 125"
+   }
+  },
+  {
+   "type": "node",
+   "id": 127,
+   "lat": -12.131,
+   "lon": -77.024,
+   "tags": {
+    "amenity": "cafe",
+    "name": "Caf\u00e9 Demo 125"
+   }
+  },
+  {
+   "type": "node",
+   "id": 128,
+   "lat": -12.115,
+   "lon": -77.022,
+   "tags": {
+    "shop": "supermarket",
+    "name": "S\u00faper Demo 128"
+   }
+  },
+  {
+   "type": "node",
+   "id": 129,
+   "lat": -12.114,
+   "lon": -77.02300000000001,
+   "tags": {
+    "amenity": "pharmacy",
+    "name": "Farmacia Demo 128"
+   }
+  },
+  {
+   "type": "node",
+   "id": 130,
+   "lat": -12.116,
+   "lon": -77.021,
+   "tags": {
+    "amenity": "cafe",
+    "name": "Caf\u00e9 Demo 128"
+   }
+  },
+  {
+   "type": "node",
+   "id": 131,
+   "lat": -12.108,
+   "lon": -77.0297,
+   "tags": {
+    "highway": "bus_stop",
+    "name": "Paradero Demo 131"
+   }
+  },
+  {
+   "type": "node",
+   "id": 132,
+   "lat": -12.115,
+   "lon": -77.0297,
+   "tags": {
+    "highway": "bus_stop",
+    "name": "Paradero Demo 132"
+   }
+  },
+  {
+   "type": "node",
+   "id": 133,
+   "lat": -12.122,
+   "lon": -77.0297,
+   "tags": {
+    "highway": "bus_stop",
+    "name": "Paradero Demo 133"
+   }
+  },
+  {
+   "type": "node",
+   "id": 134,
+   "lat": -12.129,
+   "lon": -77.0297,
+   "tags": {
+    "highway": "bus_stop",
+    "name": "Paradero Demo 134"
+   }
+  },
+  {
+   "type": "way",
+   "id": 135,
+   "geometry": [
+    {
+     "lat": -12.1132,
+     "lon": -77.0472
+    },
+    {
+     "lat": -12.1132,
+     "lon": -77.04480000000001
+    },
+    {
+     "lat": -12.1108,
+     "lon": -77.04480000000001
+    },
+    {
+     "lat": -12.1108,
+     "lon": -77.0472
+    },
+    {
+     "lat": -12.1132,
+     "lon": -77.0472
+    }
+   ],
+   "tags": {
+    "leisure": "park",
+    "name": "Parque Demo 135"
+   }
+  },
+  {
+   "type": "way",
+   "id": 136,
+   "geometry": [
+    {
+     "lat": -12.128200000000001,
+     "lon": -77.0392
+    },
+    {
+     "lat": -12.128200000000001,
+     "lon": -77.0368
+    },
+    {
+     "lat": -12.1258,
+     "lon": -77.0368
+    },
+    {
+     "lat": -12.1258,
+     "lon": -77.0392
+    },
+    {
+     "lat": -12.128200000000001,
+     "lon": -77.0392
+    }
+   ],
+   "tags": {
+    "leisure": "park",
+    "name": "Parque Demo 136"
+   }
+  },
+  {
+   "type": "way",
+   "id": 137,
+   "geometry": [
+    {
+     "lat": -12.119200000000001,
+     "lon": -77.0162
+    },
+    {
+     "lat": -12.119200000000001,
+     "lon": -77.0138
+    },
+    {
+     "lat": -12.1168,
+     "lon": -77.0138
+    },
+    {
+     "lat": -12.1168,
+     "lon": -77.0162
+    },
+    {
+     "lat": -12.119200000000001,
+     "lon": -77.0162
+    }
+   ],
+   "tags": {
+    "leisure": "park",
+    "name": "Parque Demo 137"
+   }
+  }
+ ],
+ "_fetched_at": "2026-09-24T00:00:00+00:00",
+ "_endpoint": "SYNTHETIC"
+}

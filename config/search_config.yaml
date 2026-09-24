@@ -1,0 +1,212 @@
+# Miraflores Rental Intelligence — search configuration
+# Change criteria here; no code edits needed. Every value is read by src/config.py.
+
+location:
+  country: Peru
+  city: Lima
+  district: Miraflores
+  # Bounding box used for OSM queries and as a coarse sanity check (south, west, north, east).
+  # Slightly larger than the district so that roads/bars just across the border are counted.
+  bbox: [-12.1420, -77.0620, -12.0960, -77.0000]
+  # Text tokens that indicate a *different* district even if "Miraflores" appears
+  # (e.g. "San Juan de Miraflores" is a different district in southern Lima).
+  exclude_district_tokens:
+    - "san juan de miraflores"
+    - "miraflores, arequipa"
+    - "arequipa"
+
+transaction: rent
+property_type: apartment
+
+budget:
+  currency: USD
+  target_max_rent: 1000        # principal budget (base rent)
+  target_max_total: 1000       # preferred ceiling for rent + maintenance
+  stretch_max_rent: 1100       # 1,001–1,100 → STRETCH_NEGOTIABLE sheet only
+  # Portal-side price ceiling. Slightly above stretch so PEN-priced listings converted by
+  # the portal at a different rate are not lost. Every record is re-validated after extraction.
+  query_max_rent: 1150
+
+bedrooms:
+  min: 1
+  max: 2
+  allow_studios: false         # studios excluded unless listing explicitly says 1 dormitorio
+
+occupants: couple
+
+preferences:
+  quietness: very_high
+  space: high
+  furnished: preferred         # desirable, NOT a hard requirement
+  parking: optional
+  balcony: preferred
+  natural_light: preferred
+  security: preferred
+  laundry: preferred
+
+# Space bands (m², analytical guidance only).
+space_bands:
+  1:
+    small_below: 40
+    acceptable_from: 40
+    good_from: 50
+    very_spacious_from: 60
+  2:
+    small_below: 55
+    acceptable_from: 55
+    good_from: 70
+    very_spacious_from: 85
+
+scoring:
+  quietness: 25
+  budget: 20
+  space: 20
+  location: 10
+  furnishing: 8
+  building: 7
+  listing_quality: 10
+
+noise_model:
+  baseline: 72
+  major_road:            # OSM highway = motorway / trunk / primary (+ _link)
+    strong_m: 50
+    strong_penalty: 30
+    moderate_m: 150
+    moderate_penalty: 15
+    mild_m: 300
+    mild_penalty: 6
+  arterial_road:         # OSM highway = secondary
+    strong_m: 30
+    strong_penalty: 14
+    moderate_m: 100
+    moderate_penalty: 6
+  nightclub:
+    strong_m: 150
+    strong_penalty: 25
+    moderate_m: 300
+    moderate_penalty: 12
+    mild_m: 500
+    mild_penalty: 4
+  bar_cluster:           # amenity = bar / pub within radius
+    radius_m: 150
+    many_threshold: 3
+    many_penalty: 12
+    few_penalty: 5
+  restaurant_cluster:
+    radius_m: 150
+    threshold: 10
+    penalty: 5
+  text_signals:
+    interior_view: 10
+    acoustic_windows: 12
+    quiet_street_claim: 3      # seller claim — weak evidence
+    avenue_view: -12
+    high_floor_min: 8
+    high_floor_bonus: 3
+  risk_thresholds:
+    low_from: 70
+    medium_from: 50
+
+livability:                      # metres; used for the 10-pt LOCATION component
+  supermarket_m: 500
+  pharmacy_m: 400
+  park_m: 300
+  cafe_m: 300
+  transit_m: 400
+  malecon_m: 900
+
+value_analysis:
+  min_group_size: 5              # below this, value band = INSUFFICIENT_SAMPLE
+
+red_flags:
+  very_high_deposit_months: 3
+  long_min_contract_months: 13   # > 12 months is flagged
+  very_small_area_factor: 0.85   # area < factor × "small" band threshold
+
+near_misses:
+  max_distance_outside_m: 300    # only just across the border
+  min_fit_score: 70
+
+dedupe:
+  coord_match_m: 40
+  price_tolerance: 0.05
+  area_tolerance: 0.06
+  title_ratio: 85
+  description_ratio: 80
+  match_threshold: 0.60
+
+qa:
+  top_n_programmatic: 30
+  top_n_deep: 10
+  request_delay_s: 3.0
+
+shortlist:
+  top_n: 10
+  alternatives_max: 20
+
+cost_control:
+  max_external_usd: 5.00         # hard ceiling for paid scraping in one full run
+  validation_max_items: 15       # Gate 2: 10–20 records per source
+
+sources:
+  urbania:
+    enabled: true
+    method: apify
+    actor_id: scrapers_lat/urbania-scraper
+    full_max_items: 400
+    input:
+      startUrls:
+        - url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima
+      withDetails: true
+      priceCurrency: USD
+      maxPrice: 1150
+      minBedrooms: 1
+      maxBedrooms: 2
+    # Used only when no APIFY_TOKEN is present. Stops immediately on any bot challenge.
+    direct_fallback_url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima
+    base_url: https://urbania.pe
+
+  adondevivir:
+    enabled: true
+    method: apify
+    actor_id: scrapers_lat/adondevivir-scraper
+    full_max_items: 400
+    input:
+      startUrls:
+        - url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html
+      withDetails: true
+      priceCurrency: USD
+      maxPrice: 1150
+      minBedrooms: 1
+      maxBedrooms: 2
+    direct_fallback_url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html
+    base_url: https://www.adondevivir.com
+
+  mercadolibre:
+    enabled: true
+    method: direct_html
+    search_url: https://inmuebles.mercadolibre.com.pe/departamentos/alquiler/lima/miraflores/
+    max_pages: 8                  # 48 results/page
+    fetch_details: true
+    max_details: 120
+    request_delay_s: 2.5
+
+  manual:
+    enabled: true
+    method: file_import
+    # Drop CSV/JSON files exported by hand (other portals, agencies) into this folder.
+    directory: data/manual
+
+fx:
+  # Primary: BCRP daily interbank sell rate (series PD04640PD). Fetched at run time.
+  bcrp_series: PD04640PD
+  # Fallback used ONLY if the live fetch fails. Documented in RUN_LOG.md when used.
+  fallback:
+    usd_pen: 3.385
+    source: "SUNAT tipo de cambio venta 24-Sep-2026 (as reported by La República / América TV, obtained via web search)"
+    timestamp: "2026-09-24T12:00:00-05:00"
+
+http:
+  user_agent: "MirafloresRentalResearch/1.0 (personal apartment search; low-volume, polite)"
+  timeout_s: 30
+  min_delay_s: 2.0

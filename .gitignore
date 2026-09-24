@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+# raw scrape payloads can contain agent phone numbers; keep them local
+data/raw/*
+!data/raw/.gitkeep
+data/geo/*.json
+!data/geo/.gitkeep
+data/manual/*
+!data/manual/.gitkeep
+!data/manual/README.md

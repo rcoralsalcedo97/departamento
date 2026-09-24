@@ -1,0 +1,2822 @@
+[
+ {
+  "_source": "urbania",
+  "id": "1001",
+  "url": "https://example.com/demo/urbania/1001",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1001)",
+  "description": "Flat amoblado en piso 9, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 420 soles.",
+  "price": 870,
+  "currency": "USD",
+  "expenses": "S/ 420",
+  "bedrooms": 1,
+  "bathrooms": 2,
+  "totalArea": 63,
+  "coveredArea": 58,
+  "latitude": -12.110958,
+  "longitude": -77.046751,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 100 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1000",
+  "publisherName": "DEMO Inmobiliaria A",
+  "publicationDate": "2026-09-23",
+  "images": [
+   "https://example.com/img/001001abcdef1234-1001.jpg",
+   "https://example.com/img/001001abcdef1234-1001.jpg",
+   "https://example.com/img/001001abcdef1234-1001.jpg",
+   "https://example.com/img/001001abcdef1234-1001.jpg"
+  ],
+  "amenities": [
+   "Ascensor",
+   "Vigilancia 24 horas"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1002",
+  "url": "/demo/adondevivir/1002.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1002)",
+  "description": "Flat sin amoblar en piso 3, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 420 soles.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2650,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "67",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "62",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 201 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.117181,
+     "longitude": -77.042835
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente G"
+  },
+  "publishedText": "Publicado hace 45 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001002abcdef1234-1002.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001002abcdef1234-1002.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001002abcdef1234-1002.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001002abcdef1234-1002.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001002abcdef1234-1002.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1003",
+  "url": "/demo/urbania/1003.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1003)",
+  "description": "Flat  en piso 4, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 300 soles.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2650,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": null,
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "46",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "41",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "1"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 202 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.127673,
+     "longitude": -77.046789
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente H"
+  },
+  "publishedText": "Publicado hace 52 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001003abcdef1234-1003.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1004",
+  "url": "https://example.com/demo/adondevivir/1004",
+  "title": "Alquiler departamento 2 dormitorios Miraflores (DEMO 1004)",
+  "description": "Departamento totalmente amoblado, calle tranquila y residencial, contrafrente. Dos baños completos, walk-in closet. Incluye estacionamiento. Contrato mínimo 6 meses.",
+  "price": 760,
+  "currency": "USD",
+  "expenses": null,
+  "bedrooms": 2,
+  "bathrooms": 1,
+  "totalArea": 96,
+  "coveredArea": 92,
+  "latitude": -12.121697,
+  "longitude": -77.032041,
+  "showExactLocation": false,
+  "address": "Calle Ejemplo 103 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1003",
+  "publisherName": "DEMO Inmobiliaria D",
+  "publicationDate": "2026-09-18",
+  "images": [
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg",
+   "https://example.com/img/001004abcdef1234-1004.jpg"
+  ],
+  "amenities": [
+   "Lavandería",
+   "Balcón"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1005",
+  "url": "/demo/urbania/1005.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1005)",
+  "description": "Departamento amoblado con vista interior, muy tranquilo, ventanas con doble vidrio. Cocina equipada, lavandería independiente, closets amplios. Edificio con ascensor y vigilancia 24 horas. Contrato mínimo 1 año, 2 meses de garantía y 1 mes de adelanto. Mantenimiento S/ 420.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2300,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "71",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "66",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "1"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 204 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.120507,
+     "longitude": -77.030441
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente F"
+  },
+  "publishedText": "Publicado hace 51 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001005abcdef1234-1005.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1006",
+  "url": "/demo/adondevivir/1006.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1006)",
+  "description": "Departamento amoblado con vista interior, muy tranquilo, ventanas con doble vidrio. Cocina equipada, lavandería independiente, closets amplios. Edificio con ascensor y vigilancia 24 horas. Contrato mínimo 1 año, 2 meses de garantía y 1 mes de adelanto. Mantenimiento S/ 500.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2900,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 500,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "103",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "98",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 205 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.119711,
+     "longitude": -77.030377
+    },
+    "showExactLocation": false
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente G"
+  },
+  "publishedText": "Publicado hace 28 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001006abcdef1234-1006.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001006abcdef1234-1006.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001006abcdef1234-1006.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001006abcdef1234-1006.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001006abcdef1234-1006.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001006abcdef1234-1006.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "id": "1007",
+  "url": "https://example.com/demo/urbania/1007",
+  "title": "Alquiler departamento 2 dormitorios Miraflores (DEMO 1007)",
+  "description": "Flat amoblado en piso 14, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 500 soles.",
+  "price": 970,
+  "currency": "USD",
+  "expenses": "S/ 500",
+  "bedrooms": 2,
+  "bathrooms": 2,
+  "totalArea": 105,
+  "coveredArea": 97,
+  "latitude": -12.110139,
+  "longitude": -77.018611,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 106 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1006",
+  "publisherName": "DEMO Inmobiliaria B",
+  "publicationDate": "2026-09-05",
+  "images": [
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg",
+   "https://example.com/img/001007abcdef1234-1007.jpg"
+  ],
+  "amenities": [
+   "Vigilancia 24 horas",
+   "Ascensor"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1008",
+  "url": "/demo/adondevivir/1008.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1008)",
+  "description": "Lindo depa semi-amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3450,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 350,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "69",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "64",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "1"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 207 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.125703,
+     "longitude": -77.019827
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente I"
+  },
+  "publishedText": "Publicado hace 53 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001008abcdef1234-1008.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001008abcdef1234-1008.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001008abcdef1234-1008.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001008abcdef1234-1008.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001008abcdef1234-1008.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1009",
+  "url": "/demo/urbania/1009.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1009)",
+  "description": "Departamento semi-amoblado frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2850,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 500,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "45",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "40",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 208 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.130566,
+     "longitude": -77.035922
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente F"
+  },
+  "publishedText": "Publicado hace 49 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001009abcdef1234-1009.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1010",
+  "url": "https://example.com/demo/adondevivir/1010",
+  "title": "Alquiler departamento 2 dormitorios Miraflores (DEMO 1010)",
+  "description": "Departamento semi-amoblado con vista interior, muy tranquilo, ventanas con doble vidrio. Cocina equipada, lavandería independiente, closets amplios. Edificio con ascensor y vigilancia 24 horas. Contrato mínimo 1 año, 2 meses de garantía y 1 mes de adelanto. Mantenimiento S/ 250.",
+  "price": 860,
+  "currency": "USD",
+  "expenses": "S/ 250",
+  "bedrooms": 2,
+  "bathrooms": 1.5,
+  "totalArea": 72,
+  "coveredArea": 72,
+  "latitude": -12.107361,
+  "longitude": -77.038242,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 109 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1009",
+  "publisherName": "DEMO Inmobiliaria E",
+  "publicationDate": "2026-09-08",
+  "images": [
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg",
+   "https://example.com/img/001010abcdef1234-1010.jpg"
+  ],
+  "amenities": [
+   "Vigilancia 24 horas",
+   "Ascensor"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1011",
+  "url": "/demo/urbania/1011.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1011)",
+  "description": "Lindo depa amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2150,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 350,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "43",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "38",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 210 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.116287,
+     "longitude": -77.024685
+    },
+    "showExactLocation": false
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente H"
+  },
+  "publishedText": "Publicado hace 9 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001011abcdef1234-1011.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1012",
+  "url": "/demo/adondevivir/1012.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1012)",
+  "description": "Departamento sin amoblar, calle tranquila y residencial, contrafrente. Dos baños completos, walk-in closet. Incluye estacionamiento. Contrato mínimo 6 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2250,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "66",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "61",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 211 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.124771,
+     "longitude": -77.041065
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente I"
+  },
+  "publishedText": "Publicado hace 42 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001012abcdef1234-1012.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001012abcdef1234-1012.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001012abcdef1234-1012.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001012abcdef1234-1012.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001012abcdef1234-1012.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "id": "1013",
+  "url": "https://example.com/demo/urbania/1013",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1013)",
+  "description": "Lindo depa semi-amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "price": 710,
+  "currency": "USD",
+  "expenses": "S/ 420",
+  "bedrooms": 1,
+  "bathrooms": 1.5,
+  "totalArea": 50,
+  "coveredArea": 43,
+  "latitude": -12.131318,
+  "longitude": -77.027452,
+  "showExactLocation": false,
+  "address": "Calle Ejemplo 112 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1012",
+  "publisherName": "DEMO Inmobiliaria C",
+  "publicationDate": "2026-09-03",
+  "images": [
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg",
+   "https://example.com/img/001013abcdef1234-1013.jpg"
+  ],
+  "amenities": [
+   "Gimnasio",
+   "Ascensor"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1014",
+  "url": "/demo/adondevivir/1014.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1014)",
+  "description": "Departamento semi-amoblado, calle tranquila y residencial, contrafrente. Dos baños completos, walk-in closet. Incluye estacionamiento. Contrato mínimo 6 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3550,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 300,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "70",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "65",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 213 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.118348,
+     "longitude": -77.033802
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente G"
+  },
+  "publishedText": "Publicado hace 58 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001014abcdef1234-1014.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001014abcdef1234-1014.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001014abcdef1234-1014.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001014abcdef1234-1014.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1015",
+  "url": "/demo/urbania/1015.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1015)",
+  "description": "Departamento sin amoblar frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3300,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "69",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "64",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 214 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.113006,
+     "longitude": -77.048195
+    },
+    "showExactLocation": false
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente H"
+  },
+  "publishedText": "Publicado hace 14 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001015abcdef1234-1015.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001015abcdef1234-1015.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001015abcdef1234-1015.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001015abcdef1234-1015.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1016",
+  "url": "https://example.com/demo/adondevivir/1016",
+  "title": "Alquiler departamento 2 dormitorios Miraflores (DEMO 1016)",
+  "description": "Departamento  con vista interior, muy tranquilo, ventanas con doble vidrio. Cocina equipada, lavandería independiente, closets amplios. Edificio con ascensor y vigilancia 24 horas. Contrato mínimo 1 año, 2 meses de garantía y 1 mes de adelanto. Mantenimiento S/ 500.",
+  "price": 890,
+  "currency": "USD",
+  "expenses": "S/ 500",
+  "bedrooms": 2,
+  "bathrooms": 2,
+  "totalArea": 56,
+  "coveredArea": 55,
+  "latitude": -12.117762,
+  "longitude": -77.043899,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 115 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1015",
+  "publisherName": "DEMO Inmobiliaria A",
+  "publicationDate": "2026-09-03",
+  "images": [
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg",
+   "https://example.com/img/001016abcdef1234-1016.jpg"
+  ],
+  "amenities": [
+   "Ascensor",
+   "Vigilancia 24 horas"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1017",
+  "url": "/demo/urbania/1017.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1017)",
+  "description": "Departamento amoblado frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3000,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 500,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "68",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "63",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 216 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.128289,
+     "longitude": -77.04494
+    },
+    "showExactLocation": false
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente F"
+  },
+  "publishedText": "Publicado hace 46 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001017abcdef1234-1017.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1018",
+  "url": "/demo/adondevivir/1018.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1018)",
+  "description": "Departamento amoblado frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3550,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 250,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "78",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "73",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "1"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 217 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.122184,
+     "longitude": -77.03125
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente G"
+  },
+  "publishedText": "Publicado hace 33 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001018abcdef1234-1018.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "id": "1019",
+  "url": "https://example.com/demo/urbania/1019",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1019)",
+  "description": "Departamento totalmente amoblado frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "price": 790,
+  "currency": "USD",
+  "expenses": "S/ 300",
+  "bedrooms": 1,
+  "bathrooms": 2,
+  "totalArea": 66,
+  "coveredArea": 62,
+  "latitude": -12.122803,
+  "longitude": -77.030562,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 118 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1018",
+  "publisherName": "DEMO Inmobiliaria D",
+  "publicationDate": "2026-09-21",
+  "images": [
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg",
+   "https://example.com/img/001019abcdef1234-1019.jpg"
+  ],
+  "amenities": [
+   "Ascensor",
+   "Lavandería"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1020",
+  "url": "/demo/adondevivir/1020.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1020)",
+  "description": "Flat  en piso 3, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 300 soles.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3500,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": null,
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "49",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "44",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 219 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.118705,
+     "longitude": -77.031051
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente I"
+  },
+  "publishedText": "Publicado hace 14 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001020abcdef1234-1020.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1021",
+  "url": "/demo/urbania/1021.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1021)",
+  "description": "Flat amoblado en piso 1, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 350 soles.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2750,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 350,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "44",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "39",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "1"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 220 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.109984,
+     "longitude": -77.020297
+    },
+    "showExactLocation": false
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente F"
+  },
+  "publishedText": "Publicado hace 29 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001021abcdef1234-1021.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1022",
+  "url": "https://example.com/demo/adondevivir/1022",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1022)",
+  "description": "Flat  en piso 1, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 300 soles.",
+  "price": 1030,
+  "currency": "USD",
+  "expenses": "S/ 300",
+  "bedrooms": 1,
+  "bathrooms": 2,
+  "totalArea": 46,
+  "coveredArea": 38,
+  "latitude": -12.125383,
+  "longitude": -77.019654,
+  "showExactLocation": false,
+  "address": "Calle Ejemplo 121 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1021",
+  "publisherName": "DEMO Inmobiliaria B",
+  "publicationDate": "2026-09-05",
+  "images": [
+   "https://example.com/img/001022abcdef1234-1022.jpg",
+   "https://example.com/img/001022abcdef1234-1022.jpg",
+   "https://example.com/img/001022abcdef1234-1022.jpg"
+  ],
+  "amenities": [
+   "Lavandería",
+   "Gimnasio"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1023",
+  "url": "/demo/urbania/1023.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1023)",
+  "description": "Departamento amoblado frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2450,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 300,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "68",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "63",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 222 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.130803,
+     "longitude": -77.035289
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente H"
+  },
+  "publishedText": "Publicado hace 16 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001023abcdef1234-1023.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001023abcdef1234-1023.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001023abcdef1234-1023.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001023abcdef1234-1023.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001023abcdef1234-1023.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001023abcdef1234-1023.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1024",
+  "url": "/demo/adondevivir/1024.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1024)",
+  "description": "Lindo depa totalmente amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3250,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 350,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "58",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "53",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 223 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.106571,
+     "longitude": -77.037254
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente I"
+  },
+  "publishedText": "Publicado hace 7 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001024abcdef1234-1024.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "id": "1025",
+  "url": "https://example.com/demo/urbania/1025",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1025)",
+  "description": "Lindo depa sin amoblar con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "price": 1040,
+  "currency": "USD",
+  "expenses": "S/ 350",
+  "bedrooms": 1,
+  "bathrooms": 1,
+  "totalArea": 42,
+  "coveredArea": 42,
+  "latitude": -12.113883,
+  "longitude": -77.024139,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 124 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1024",
+  "publisherName": "DEMO Inmobiliaria E",
+  "publicationDate": "2026-09-13",
+  "images": [
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg",
+   "https://example.com/img/001025abcdef1234-1025.jpg"
+  ],
+  "amenities": [
+   "Lavandería",
+   "Ascensor"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1026",
+  "url": "/demo/adondevivir/1026.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1026)",
+  "description": "Departamento sin amoblar con vista interior, muy tranquilo, ventanas con doble vidrio. Cocina equipada, lavandería independiente, closets amplios. Edificio con ascensor y vigilancia 24 horas. Contrato mínimo 1 año, 2 meses de garantía y 1 mes de adelanto. Mantenimiento S/ 500.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3600,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 500,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "75",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "70",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 225 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.122599,
+     "longitude": -77.04153
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente G"
+  },
+  "publishedText": "Publicado hace 17 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001026abcdef1234-1026.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001026abcdef1234-1026.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001026abcdef1234-1026.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001026abcdef1234-1026.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1027",
+  "url": "/demo/urbania/1027.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1027)",
+  "description": "Lindo depa totalmente amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3600,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 250,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "77",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "72",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 226 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.131175,
+     "longitude": -77.028157
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente H"
+  },
+  "publishedText": "Publicado hace 1 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001027abcdef1234-1027.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1028",
+  "url": "https://example.com/demo/adondevivir/1028",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1028)",
+  "description": "Flat sin amoblar en piso 10, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 300 soles.",
+  "price": 650,
+  "currency": "USD",
+  "expenses": null,
+  "bedrooms": 1,
+  "bathrooms": 2,
+  "totalArea": 48,
+  "coveredArea": 47,
+  "latitude": -12.115723,
+  "longitude": -77.034908,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 127 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1027",
+  "publisherName": "DEMO Inmobiliaria C",
+  "publicationDate": "2026-09-10",
+  "images": [
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg",
+   "https://example.com/img/001028abcdef1234-1028.jpg"
+  ],
+  "amenities": [
+   "Lavandería",
+   "Balcón"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1029",
+  "url": "/demo/urbania/1029.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1029)",
+  "description": "Departamento semi-amoblado frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2750,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "63",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "58",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 228 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.112521,
+     "longitude": -77.046527
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente F"
+  },
+  "publishedText": "Publicado hace 1 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001029abcdef1234-1029.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1030",
+  "url": "/demo/adondevivir/1030.html",
+  "title": "Departamento en alquiler — 2 dorm. (DEMO 1030)",
+  "description": "Lindo depa totalmente amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2600,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "85",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "80",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "2"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "0"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 229 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.118639,
+     "longitude": -77.044168
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente G"
+  },
+  "publishedText": "Publicado hace 19 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001030abcdef1234-1030.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "id": "1031",
+  "url": "https://example.com/demo/urbania/1031",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1031)",
+  "description": "Lindo depa sin amoblar con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "price": 970,
+  "currency": "USD",
+  "expenses": null,
+  "bedrooms": 1,
+  "bathrooms": 1,
+  "totalArea": 61,
+  "coveredArea": 61,
+  "latitude": -12.127508,
+  "longitude": -77.045714,
+  "showExactLocation": false,
+  "address": "Calle Ejemplo 130 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1030",
+  "publisherName": "DEMO Inmobiliaria A",
+  "publicationDate": "2026-09-16",
+  "images": [
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg",
+   "https://example.com/img/001031abcdef1234-1031.jpg"
+  ],
+  "amenities": [
+   "Ascensor",
+   "Balcón"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "postingId": "1032",
+  "url": "/demo/adondevivir/1032.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1032)",
+  "description": "Departamento semi-amoblado con vista interior, muy tranquilo, ventanas con doble vidrio. Cocina equipada, lavandería independiente, closets amplios. Edificio con ascensor y vigilancia 24 horas. Contrato mínimo 1 año, 2 meses de garantía y 1 mes de adelanto. Mantenimiento S/ 420.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 2700,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": {
+   "amount": 420,
+   "currency": "S/"
+  },
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "63",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "58",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "1"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 231 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.121657,
+     "longitude": -77.030689
+    },
+    "showExactLocation": false
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente I"
+  },
+  "publishedText": "Publicado hace 52 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001032abcdef1234-1032.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "urbania",
+  "postingId": "1033",
+  "url": "/demo/urbania/1033.html",
+  "title": "Departamento en alquiler — 1 dorm. (DEMO 1033)",
+  "description": "Departamento  frente a la avenida principal, ideal para ejecutivos. Recepción 24 horas, coworking.",
+  "priceOperationTypes": [
+   {
+    "operationType": {
+     "name": "Alquiler"
+    },
+    "prices": [
+     {
+      "amount": 3350,
+      "currency": "S/"
+     }
+    ]
+   }
+  ],
+  "expenses": null,
+  "mainFeatures": {
+   "CFT100": {
+    "label": "Área total",
+    "value": "55",
+    "measure": "m²"
+   },
+   "CFT101": {
+    "label": "Área techada",
+    "value": "50",
+    "measure": "m²"
+   },
+   "CFT2": {
+    "label": "Dormitorios",
+    "value": "1"
+   },
+   "CFT3": {
+    "label": "Baños",
+    "value": "2"
+   },
+   "CFT7": {
+    "label": "Estacionamientos",
+    "value": "1"
+   }
+  },
+  "postingLocation": {
+   "address": {
+    "name": "Av. Ejemplo 232 (DEMO)"
+   },
+   "location": {
+    "name": "Miraflores",
+    "parent": {
+     "name": "Lima"
+    }
+   },
+   "postingGeolocation": {
+    "geolocation": {
+     "latitude": -12.121806,
+     "longitude": -77.030062
+    },
+    "showExactLocation": true
+   }
+  },
+  "publisher": {
+   "name": "DEMO Agente F"
+  },
+  "publishedText": "Publicado hace 47 días",
+  "visiblePictures": {
+   "pictures": [
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    },
+    {
+     "url730x532": "https://example.com/img/001033abcdef1234-1033.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1034",
+  "url": "https://example.com/demo/adondevivir/1034",
+  "title": "Alquiler departamento 2 dormitorios Miraflores (DEMO 1034)",
+  "description": "Lindo depa totalmente amoblado con balcón y vista a la avenida, a pocos pasos del parque. Portería 24h, zona de parrilla. Se aceptan mascotas pequeñas. Garantía: dos meses. Contrato de 12 meses.",
+  "price": 960,
+  "currency": "USD",
+  "expenses": "S/ 420",
+  "bedrooms": 2,
+  "bathrooms": 2,
+  "totalArea": 97,
+  "coveredArea": 93,
+  "latitude": -12.12022,
+  "longitude": -77.029124,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 133 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1033",
+  "publisherName": "DEMO Inmobiliaria D",
+  "publicationDate": "2026-09-17",
+  "images": [
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg",
+   "https://example.com/img/001034abcdef1234-1034.jpg"
+  ],
+  "amenities": [
+   "Vigilancia 24 horas",
+   "Lavandería"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "id": "1001",
+  "url": "https://example.com/demo/adondevivir/1001",
+  "title": "Alquiler departamento 1 dormitorio Miraflores (DEMO 1001)",
+  "description": "Flat amoblado en piso 9, iluminado, cerca de supermercados y del malecón. Terraza, estudio / home office. Edificio con gimnasio y piscina. Mantenimiento aprox. 420 soles.",
+  "price": 890,
+  "currency": "USD",
+  "expenses": "S/ 420",
+  "bedrooms": 1,
+  "bathrooms": 2,
+  "totalArea": 63,
+  "coveredArea": 58,
+  "latitude": -12.110958,
+  "longitude": -77.046751,
+  "showExactLocation": true,
+  "address": "Calle Ejemplo 100 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1000",
+  "publisherName": "DEMO Inmobiliaria A",
+  "publicationDate": "2026-09-23",
+  "images": [
+   "https://example.com/img/001001abcdef1234-1001.jpg",
+   "https://example.com/img/001001abcdef1234-1001.jpg",
+   "https://example.com/img/001001abcdef1234-1001.jpg",
+   "https://example.com/img/001001abcdef1234-1001.jpg"
+  ],
+  "amenities": [
+   "Ascensor",
+   "Vigilancia 24 horas"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "id": "9001",
+  "url": "https://example.com/demo/urbania/9001",
+  "title": "Monoambiente tipo estudio (DEMO 9001)",
+  "description": "Departamento totalmente amoblado, calle tranquila y residencial, contrafrente. Dos baños completos, walk-in closet. Incluye estacionamiento. Contrato mínimo 6 meses.",
+  "price": 760,
+  "currency": "USD",
+  "expenses": null,
+  "bedrooms": 0,
+  "bathrooms": 1,
+  "totalArea": 96,
+  "coveredArea": 92,
+  "latitude": -12.121697,
+  "longitude": -77.032041,
+  "showExactLocation": false,
+  "address": "Calle Ejemplo 103 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1003",
+  "publisherName": "DEMO Inmobiliaria D",
+  "publicationDate": "2026-09-18",
+  "images": [
+   "https://example.com/img/9001x.jpg"
+  ],
+  "amenities": [
+   "Lavandería",
+   "Balcón"
+  ]
+ },
+ {
+  "_source": "adondevivir",
+  "id": "9002",
+  "url": "https://example.com/demo/urbania/9002",
+  "title": "Departamento 3 dormitorios (DEMO 9002)",
+  "description": "Departamento totalmente amoblado, calle tranquila y residencial, contrafrente. Dos baños completos, walk-in closet. Incluye estacionamiento. Contrato mínimo 6 meses.",
+  "price": 760,
+  "currency": "USD",
+  "expenses": null,
+  "bedrooms": 3,
+  "bathrooms": 1,
+  "totalArea": 96,
+  "coveredArea": 92,
+  "latitude": -12.121697,
+  "longitude": -77.032041,
+  "showExactLocation": false,
+  "address": "Calle Ejemplo 103 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 1003",
+  "publisherName": "DEMO Inmobiliaria D",
+  "publicationDate": "2026-09-18",
+  "images": [
+   "https://example.com/img/9002x.jpg"
+  ],
+  "amenities": [
+   "Lavandería",
+   "Balcón"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "id": "9003",
+  "url": "https://example.com/demo/urbania/9003",
+  "title": "Aviso finalizado (DEMO 9003)",
+  "description": "Aviso finalizado de prueba.",
+  "price": 970,
+  "currency": "USD",
+  "expenses": "S/ 500",
+  "bedrooms": 2,
+  "bathrooms": 2,
+  "totalArea": 105,
+  "coveredArea": 97,
+  "latitude": -12.113,
+  "longitude": -77.042,
+  "showExactLocation": true,
+  "address": "Calle Inactiva 903 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 9003",
+  "publisherName": "DEMO Inmobiliaria B",
+  "publicationDate": "2026-09-05",
+  "images": [
+   "https://example.com/img/9003x.jpg"
+  ],
+  "amenities": [
+   "Vigilancia 24 horas",
+   "Ascensor"
+  ],
+  "status": "FINALIZADO"
+ },
+ {
+  "_source": "adondevivir",
+  "id": "9004",
+  "url": "https://example.com/demo/urbania/9004",
+  "title": "Stretch 2 dormitorios amplio (DEMO 9004)",
+  "description": "Departamento amplio de 96 m2, amoblado, vista interior, dos baños, lavandería.",
+  "price": 1060,
+  "currency": "USD",
+  "expenses": "S/ 250",
+  "bedrooms": 2,
+  "bathrooms": 1.5,
+  "totalArea": 104,
+  "coveredArea": 96,
+  "latitude": -12.131,
+  "longitude": -77.04,
+  "showExactLocation": true,
+  "address": "Calle Amplia 904 (DEMO)",
+  "district": "Miraflores",
+  "phone": "+51 1 000 9004",
+  "publisherName": "DEMO Inmobiliaria E",
+  "publicationDate": "2026-09-08",
+  "images": [
+   "https://example.com/img/9004x.jpg"
+  ],
+  "amenities": [
+   "Vigilancia 24 horas",
+   "Ascensor"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "id": "9005",
+  "url": "https://example.com/demo/urbania/9005",
+  "title": "Límite Miraflores, 2 dormitorios (DEMO 9005)",
+  "description": "Vista interior, ventanas antirruido, amoblado, lavandería, vigilancia 24 horas.",
+  "price": 880,
+  "currency": "USD",
+  "expenses": "S/ 420",
+  "bedrooms": 2,
+  "bathrooms": 1.5,
+  "totalArea": 50,
+  "coveredArea": 88,
+  "latitude": -12.118,
+  "longitude": -77.0085,
+  "showExactLocation": false,
+  "address": "Calle Borde 905 (DEMO)",
+  "district": "Surquillo",
+  "phone": "+51 1 000 9005",
+  "publisherName": "DEMO Inmobiliaria C",
+  "publicationDate": "2026-09-03",
+  "images": [
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg",
+   "https://example.com/img/9005x.jpg"
+  ],
+  "amenities": [
+   "Gimnasio",
+   "Ascensor"
+  ]
+ },
+ {
+  "_source": "urbania",
+  "id": "9006",
+  "url": "https://example.com/demo/urbania/9006",
+  "title": "Lejos del límite (DEMO 9006)",
+  "description": "Otro distrito.",
+  "price": 700,
+  "currency": "USD",
+  "expenses": "S/ 420",
+  "bedrooms": 1,
+  "bathrooms": 1.5,
+  "totalArea": 50,
+  "coveredArea": 43,
+  "latitude": -12.118,
+  "longitude": -76.995,
+  "showExactLocation": false,
+  "address": "Calle Lejana 906 (DEMO)",
+  "district": "Surquillo",
+  "phone": "+51 1 000 9006",
+  "publisherName": "DEMO Inmobiliaria C",
+  "publicationDate": "2026-09-03",
+  "images": [
+   "https://example.com/img/9006x.jpg"
+  ],
+  "amenities": [
+   "Gimnasio",
+   "Ascensor"
+  ]
+ }
+]
