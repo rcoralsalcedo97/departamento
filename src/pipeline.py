@@ -302,13 +302,14 @@ def final_audit(ranked: pd.DataFrame, xlsx: Path, pdf: Path, cfg: dict, token: s
 
 # --------------------------------------------------------------------------- main flow
 def process(listings: list[Listing], cfg: dict, fx: FxRate, http: PoliteClient | None, layers: OsmLayers | None,
-            log: RunLog, live_qa: bool, geocode: bool) -> pd.DataFrame:
+            log: RunLog, live_qa: bool, geocode: bool, persist: bool = True) -> pd.DataFrame:
     norm = [normalize_listing(lst, cfg, fx) for lst in listings]
     df = pd.DataFrame([n.model_dump() for n in norm])
     if df.empty:
         return df
-    K.NORMALIZED.mkdir(parents=True, exist_ok=True)
-    df.to_csv(K.NORMALIZED / "listings_normalized.csv", index=False)
+    if persist:   # demo mode never touches data/ (synthetic rows must not mix with real ones)
+        K.NORMALIZED.mkdir(parents=True, exist_ok=True)
+        df.to_csv(K.NORMALIZED / "listings_normalized.csv", index=False)
 
     df = deduplicate(df, cfg)
     n_groups = df["duplicate_group_id"].nunique()
@@ -512,7 +513,7 @@ def run_demo(cfg: dict, log: RunLog, out: Path | None = None) -> int:
     osm = json.loads((fx_dir / "synthetic_osm.json").read_text(encoding="utf-8"))
     layers = parse_layers(osm, "SYNTHETIC OSM fixture (demo only)")
     log.section("Demo", ["SYNTHETIC data — format preview only", f"{len(listings)} synthetic records"])
-    ranked = process(listings, cfg, fx, None, layers, log, live_qa=False, geocode=False)
+    ranked = process(listings, cfg, fx, None, layers, log, live_qa=False, geocode=False, persist=False)
     meta = make_meta(cfg, fx, len(listings), ranked, 0.0)
     audit_rows = build_audit_rows({}, {}, {})
     out = out or K.ROOT / "docs" / "preview"
