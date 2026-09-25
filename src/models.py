@@ -19,6 +19,7 @@ class Listing(BaseModel):
     source: str
     source_listing_id: Optional[str] = None
     source_url: Optional[str] = None
+    search_segment: Optional[str] = None        # bedroom search that returned it, e.g. "1BR"
     scraped_at: Optional[str] = None
     publication_date: Optional[str] = None
     last_updated_date: Optional[str] = None
@@ -35,8 +36,10 @@ class Listing(BaseModel):
     address: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    coord_source: Optional[str] = None          # LISTING / GEOCODED_ADDRESS / None
-    coord_precision: Optional[str] = None       # EXACT / APPROXIMATE / STREET_LEVEL
+    coord_source: Optional[str] = None          # LISTING / GEOCODED_ADDRESS / GEOCODED_TEXT / None
+    coord_precision: Optional[str] = None       # EXACT / APPROXIMATE / STREET_NUMBER / STREET_LEVEL
+    geocoding_confidence: Optional[str] = None  # HIGH / MEDIUM (geocoded points only)
+    address_evidence: Optional[str] = None      # the listing text a geocode was based on
 
     # money (as published)
     rent_original: Optional[float] = None
@@ -45,6 +48,12 @@ class Listing(BaseModel):
     rent_usd: Optional[float] = None
     rent_pen_basis: Optional[Basis] = None
     rent_usd_basis: Optional[Basis] = None
+    # Figures exactly as the portal published them (never overwritten). rent_usd above is the single
+    # comparable value used for budget, ranking and USD/m²: the USD price when the listing is priced in
+    # USD, otherwise the PEN price converted at the run's one documented FX rate.
+    rent_usd_published: Optional[float] = None
+    rent_pen_published: Optional[float] = None
+    rent_usd_published_diff_pct: Optional[float] = None   # published USD vs USD calculated from PEN
 
     maintenance_fee: Optional[float] = None
     maintenance_currency: Optional[str] = None
@@ -105,6 +114,7 @@ class Listing(BaseModel):
     # contact
     agent_name: Optional[str] = None
     agency_name: Optional[str] = None
+    advertiser_key: Optional[str] = None        # portal publisher id / logo path (dedupe evidence only)
     phone: Optional[str] = None
     whatsapp: Optional[str] = None
 

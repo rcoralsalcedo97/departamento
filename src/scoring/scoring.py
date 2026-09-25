@@ -141,7 +141,15 @@ def classify(row: dict, cfg: dict) -> tuple[str, list[str], list[str]]:
         return "PRIMARY", [], flags
     if rent <= cfg["budget"]["stretch_max_rent"]:
         return "STRETCH", [], flags
+    if rent <= borderline_ceiling(cfg):
+        # only just above the stretch ceiling, typically because of the PEN→USD conversion: visible, never compliant
+        return "BORDERLINE", [], flags + ["BORDERLINE_OVER_STRETCH"]
     return "EXCLUDED", [f"rent USD {rent:.0f} above stretch ceiling"], flags
+
+
+def borderline_ceiling(cfg: dict) -> float:
+    stretch = float(cfg["budget"]["stretch_max_rent"])
+    return stretch * (1 + cfg["budget"]["borderline_max_over_pct"] / 100)
 
 
 # --------------------------------------------------------------------------- budget classes
@@ -163,6 +171,9 @@ def budget_class(row: dict, cfg: dict) -> tuple[str, str]:
         return "BASE_RENT_COMPLIANT", "rent within budget; maintenance not published — total unknown"
     if rent <= stretch:
         return "STRETCH", f"rent USD {rent:,.0f} (stretch)"
+    if rent <= borderline_ceiling(cfg):
+        return "BORDERLINE", (f"normalised rent USD {rent:,.2f} is {100 * (rent / stretch - 1):.1f}% above the "
+                              f"USD {stretch:,.0f} stretch ceiling — not budget-compliant")
     return "OVER_BUDGET", f"rent USD {rent:,.0f}"
 
 
@@ -331,6 +342,9 @@ def red_flags(row, cfg, extra: list[str]) -> list[str]:
         f.add("SHORT_TERM_WORDING")
     if row.get("rent_usd_basis") == "CALCULATED":
         f.add("PRICE_CONVERTED_FROM_PEN")
+    diff = _num(row.get("rent_usd_published_diff_pct"))
+    if diff is not None and abs(diff) > cfg["fx"]["published_mismatch_flag_pct"]:
+        f.add("CURRENCY_CONVERSION_MISMATCH")
     return sorted(f)
 
 
@@ -384,6 +398,7 @@ def advantages(row) -> list[str]:
 
 
 DRAWBACK_TEXT = [
+    ("ON_MAJOR_ARTERIAL", lambda r: "on a major arterial (see noise evidence) — check traffic noise in the bedroom"),
     ("HIGH_NOISE_RISK", lambda r: f"high estimated noise: {str(r.get('quietness_reason') or '').split(';')[0]}"),
     ("DIRECT_MAJOR_AVENUE", lambda r: (f"only {_num(r.get('dist_major_road_m')):.0f} m from "
                                       f"{r.get('major_road_name') or 'a major avenue'}")
@@ -482,7 +497,7 @@ def rank(df: pd.DataFrame, strict_margin: float = 5.0) -> pd.DataFrame:
     canon = df[df["is_canonical"]].copy()
     total = canon["estimated_total_monthly_usd"] if "estimated_total_monthly_usd" in canon else canon["rent_usd"]
     canon["_cost"] = total.fillna(canon["rent_usd"])
-    order = {"PRIMARY": 0, "STRETCH": 1, "NEAR_MISS": 2, "EXCLUDED": 3}
+    order = {"PRIMARY": 0, "STRETCH": 1, "BORDERLINE": 2, "NEAR_MISS": 3, "EXCLUDED": 4}
     canon["_cat"] = canon["category"].map(order)
     # Quiet is the client's first priority: a unit with HIGH estimated noise (and a location good enough to
     # trust that estimate) ranks after every LOW/MEDIUM unit in its category, whatever its fit score.

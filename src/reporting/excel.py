@@ -117,8 +117,8 @@ def _standard_cf(ws, hdr: int, last: int, cols: list[Col], top5: bool = False):
     noise = _col_letter(cols, "Noise Risk")
     if noise:
         rng = f"{noise}{first}:{noise}{last}"
-        for word, fill, font in (("LOW", "D8F0DD", "0B6B22"), ("MEDIUM", "FFF1CC", "7A5200"),
-                                 ("HIGH", "FBD5D2", "9B1C13")):
+        for word, fill, font in (("LIKELY QUIET", "D8F0DD", "0B6B22"), ("POSSIBLY QUIET", "E6F4E8", "2D6B3A"),
+                                 ("NOISE UNCERTAIN", "ECEBE6", "4A4944"), ("LIKELY NOISY", "FBD5D2", "9B1C13")):
             ws.conditional_formatting.add(rng, FormulaRule(formula=[f'LEFT({noise}{first},{len(word)})="{word}"'],
                                                            fill=PatternFill("solid", fgColor=fill),
                                                            font=Font(bold=True, color=font), stopIfTrue=True))
@@ -147,8 +147,12 @@ def _standard_cf(ws, hdr: int, last: int, cols: list[Col], top5: bool = False):
 
 def _rent_comment(row: dict, col: str) -> str | None:
     if col == "Monthly Rent USD" and row.get("rent_usd_basis") == "CALCULATED":
-        return (f"Published as S/ {C.num(row.get('rent_pen')):,.0f}. Converted at 1 USD = S/ "
+        note = (f"Published as S/ {C.num(row.get('rent_pen')):,.0f}. Converted at 1 USD = S/ "
                 f"{C.num(row.get('fx_rate_usd_pen')):.3f} (see METHODOLOGY).")
+        portal_usd, diff = C.num(row.get("rent_usd_published")), C.num(row.get("rent_usd_published_diff_pct"))
+        if portal_usd is not None and diff is not None:
+            note += f" The portal also shows USD {portal_usd:,.0f} ({diff:+.1f}% vs this rate)."
+        return note
     if col == "Monthly Rent USD" and row.get("rent_pen_basis") == "PUBLISHED" and row.get("rent_usd_basis") == "PUBLISHED":
         return f"Listing publishes both USD and S/ {C.num(row.get('rent_pen')):,.0f}."
     return None
@@ -169,8 +173,8 @@ EXEC_COLS: list[Col] = [
     ("Furnished", C.furnished_text, 10, None),
     ("Parking", C.parking_text, 9, None),
     ("Floor", C.floor_text, 7, None),
-    ("Noise Risk", C.noise_text, 14, None),
-    ("Quietness Score", lambda r: C.num(r.get("quietness_score_0_100")), 9, "0"),
+    ("Noise Risk", C.noise_text, 22, None),
+    ("Quietness Score", C.quietness_value, 9, "0"),
     ("Location", C.location_text, 34, None),
     ("Contract", C.contract_text, 12, None),
     ("Deposit", C.deposit_text, 14, None),
@@ -181,6 +185,7 @@ EXEC_COLS: list[Col] = [
     ("View Listing", lambda r: _link("View listing", r.get("source_url")), 12, None),
     ("WhatsApp", lambda r: _link("Open WhatsApp", C.whatsapp_url(r)), 14, None),
     ("Map", lambda r: _link("Open map", C.map_url(r)), 10, None),
+    ("Active status", lambda r: r.get("active_status") or "UNKNOWN", 16, None),
     ("QA Status", lambda r: r.get("qa_status") or "NOT_CHECKED", 18, None),
 ]
 
@@ -215,8 +220,8 @@ DETAIL_COLS: list[Col] = [
     ("Security", lambda r: C.yn(r.get("security_24h")), 8, None),
     ("Pets", lambda r: C.yn(r.get("pets_allowed")), 7, None),
     ("Interior view", lambda r: C.yn(r.get("interior_view")), 8, None),
-    ("Noise Risk", C.noise_text, 14, None),
-    ("Quietness Score", lambda r: C.num(r.get("quietness_score_0_100")), 9, "0"),
+    ("Noise Risk", C.noise_text, 22, None),
+    ("Quietness Score", C.quietness_value, 9, "0"),
     ("Quietness evidence", lambda r: r.get("quietness_reason"), 50, None),
     ("Nearest major road (m)", lambda r: C.num(r.get("dist_major_road_m")), 10, "0"),
     ("Nearest nightclub (m)", lambda r: C.num(r.get("dist_nightclub_m")), 10, "0"),
@@ -224,7 +229,7 @@ DETAIL_COLS: list[Col] = [
     ("Daily needs nearby", lambda r: r.get("location_notes") or "UNKNOWN", 30, None),
     ("Contract", C.contract_text, 12, None),
     ("Deposit", C.deposit_text, 14, None),
-    ("Utilities included", lambda r: r.get("utilities_included") or "UNKNOWN", 14, None),
+    ("Utilities included", C.utilities_text, 14, None),
     ("Published", lambda r: r.get("publication_date") or "UNKNOWN", 11, None),
     ("Active status", lambda r: r.get("active_status"), 14, None),
     ("Main Advantage", lambda r: r.get("main_advantage"), 40, None),
@@ -273,8 +278,14 @@ def _contact_cell(r: dict):
 
 
 def _short(text, n: int) -> str:
-    text = str(text or "")
-    return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + "…"
+    """Keep whole phrases ("; "-separated) up to about n characters — never cut a phrase in half."""
+    parts = [p for p in str(text or "").split("; ") if p]
+    out: list[str] = []
+    for p in parts:
+        if out and len("; ".join(out + [p])) > n:
+            break
+        out.append(p)
+    return "; ".join(out)
 
 
 CLIENT_COLS: list[Col] = [
@@ -285,8 +296,8 @@ CLIENT_COLS: list[Col] = [
     ("Est. Total", _total_cell, 12, USD_FMT),
     ("Bedrooms", lambda r: int(C.num(r.get("bedrooms")) or 0), 9, "0"),
     ("Area m²", lambda r: C.num(r.get("area_m2")) or "Unknown", 8, "0"),
-    ("Furnished", C.furnished_text, 9, None),
-    ("Noise", lambda r: f"{r.get('noise_risk')} ({str(r.get('noise_confidence') or '').lower()} conf.)", 12, None),
+    ("Furnished", C.furnished_text, 11, None),
+    ("Noise", C.noise_text, 15, None),
     ("Why It Stands Out", lambda r: _short(r.get("main_advantage"), 120), 30, None),
     ("Main Drawback", lambda r: _short(r.get("main_drawback"), 100), 26, None),
     ("Listing", lambda r: _link("Open", r.get("source_url")), 7, None),
@@ -303,11 +314,12 @@ def _client_styler(cell, row: dict, col: str) -> None:
         cell.font = Font(name="Calibri", size=10, bold=True, color="0B6B22" if strict else "8A4B00")
         cell.alignment = Alignment(wrap_text=True, vertical="top")
     elif col == "Noise":
-        risk = str(row.get("noise_risk"))
-        colors = {"LOW": ("D8F0DD", "0B6B22"), "MEDIUM": ("FFF1CC", "7A5200"), "HIGH": ("FBD5D2", "9B1C13")}
-        if risk in colors:
-            cell.fill = PatternFill("solid", fgColor=colors[risk][0])
-            cell.font = Font(name="Calibri", size=10, bold=True, color=colors[risk][1])
+        label = str(row.get("noise_label"))
+        colors = {"LIKELY QUIET": ("D8F0DD", "0B6B22"), "POSSIBLY QUIET": ("E6F4E8", "2D6B3A"),
+                  "NOISE UNCERTAIN": ("ECEBE6", "4A4944"), "LIKELY NOISY": ("FBD5D2", "9B1C13")}
+        if label in colors:
+            cell.fill = PatternFill("solid", fgColor=colors[label][0])
+            cell.font = Font(name="Calibri", size=10, bold=True, color=colors[label][1])
         cell.alignment = Alignment(wrap_text=True, vertical="top")
     elif col in ("Property", "Maintenance", "Why It Stands Out", "Main Drawback", "WhatsApp / Contact", "Furnished"):
         cell.alignment = Alignment(wrap_text=True, vertical="top")
@@ -355,10 +367,12 @@ def build_workbook(path: Path, ranked: pd.DataFrame, meta: dict, audit_rows: lis
         ("ALL_MATCHES", "PRIMARY", "All budget-compliant Miraflores matches", None),
         ("STRETCH_NEGOTIABLE", "STRETCH", "Stretch / negotiable (rent USD 1,001–1,100) — kept separate",
          lambda r: f"Rent USD {C.num(r.get('rent_usd')):,.0f}: above the USD 1,000 target; only worth it if negotiable"),
-        ("NEAR_MISSES", "NEAR_MISS", "Near misses — just outside Miraflores, exceptionally strong",
-         lambda r: r.get("exclusion_reason") or ""),
+        ("NEAR_MISSES", ("BORDERLINE", "NEAR_MISS"), "Near misses and borderline cases — never budget-compliant",
+         lambda r: (f"BORDERLINE: {r.get('budget_note')}" if r.get("category") == "BORDERLINE"
+                    else r.get("exclusion_reason") or "")),
     ):
-        sub = ranked[ranked["category"] == cat].sort_values("rank_in_category")
+        cats = cat if isinstance(cat, tuple) else (cat,)
+        sub = ranked[ranked["category"].isin(cats)].sort_values(["category", "rank_in_category"])
         ws = wb.create_sheet(name)
         _write_table(ws, title, stamp, DETAIL_COLS, _records(sub, why), banner, freeze_col=4,
                      cf=lambda ws_, h, l, c: _standard_cf(ws_, h, l, c), comments=_rent_comment)
@@ -393,14 +407,17 @@ def build_workbook(path: Path, ranked: pd.DataFrame, meta: dict, audit_rows: lis
     ws.cell(2, 1, stamp).font = SUB_FONT
     if banner:
         ws.cell(3, 1, banner).font = WARN_FONT
-    ws.cell(5, 1, "English").font = Font(bold=True, color=NAVY)
-    ws.cell(5, 2, TEMPLATE_EN).alignment = WRAP
+    ws.column_dimensions["A"].width = 24
+    ws.cell(5, 1, "Message to send (Spanish)").font = Font(bold=True, color=NAVY)
+    ws.cell(5, 1).alignment = WRAP
+    ws.cell(5, 2, TEMPLATE_ES).alignment = WRAP
     ws.merge_cells("B5:F5")
-    ws.row_dimensions[5].height = 250
-    ws.cell(6, 1, "Español").font = Font(bold=True, color=NAVY)
-    ws.cell(6, 2, TEMPLATE_ES).alignment = WRAP
+    ws.row_dimensions[5].height = 300
+    ws.cell(6, 1, "What it says (English)").font = Font(bold=True, color=NAVY)
+    ws.cell(6, 1).alignment = WRAP
+    ws.cell(6, 2, TEMPLATE_EN).alignment = WRAP
     ws.merge_cells("B6:F6")
-    ws.row_dimensions[6].height = 250
+    ws.row_dimensions[6].height = 300
     contact_cols: list[Col] = [
         ("Rank", lambda r: r["_rank"], 10, "0"),
         ("Property", C.property_label, 34, None),

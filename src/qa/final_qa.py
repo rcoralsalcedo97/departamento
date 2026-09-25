@@ -21,6 +21,21 @@ REQUIRED_SHEETS = ["CLIENT_TOP_PICKS", "EXECUTIVE_SHORTLIST", "ALL_MATCHES", "ST
                    "SOURCE_AUDIT", "METHODOLOGY", "CONTACT_GUIDE"]
 
 
+def _sheet_names() -> dict[str, dict[str, str]]:
+    from ..reporting.excel_hi import SHEETS
+    return {"EN": {s: s for s in REQUIRED_SHEETS}, "HI": {s: SHEETS[s] for s in REQUIRED_SHEETS}}
+
+
+class _Names(dict):
+    def __missing__(self, key):
+        self.update(_sheet_names())
+        return dict.__getitem__(self, key)
+
+
+SHEET_NAMES = _Names()
+DEVANAGARI = re.compile(r"[\u0900-\u097F]")
+
+
 def _num(v):
     try:
         f = float(v)
@@ -41,21 +56,25 @@ class Report:
 
 
 # --------------------------------------------------------------------------- workbook
-def xlsx_checks(path: Path, rep: Report, production: bool) -> list[str]:
+def xlsx_checks(path: Path, rep: Report, production: bool, tag: str = "EN") -> list[str]:
     from openpyxl import load_workbook
     try:
         wb = load_workbook(path)
     except Exception as exc:  # noqa: BLE001
-        rep.add("FAIL", "1. XLSX opens", str(exc))
+        rep.add("FAIL", f"[{tag}] 1. XLSX opens", str(exc))
         return []
-    missing = [s for s in REQUIRED_SHEETS if s not in wb.sheetnames]
-    first_ok = wb.sheetnames[0] == "CLIENT_TOP_PICKS"
+    names = SHEET_NAMES[tag]
+    missing = [names[s] for s in REQUIRED_SHEETS if names[s] not in wb.sheetnames]
+    first_ok = wb.sheetnames[0] == names["CLIENT_TOP_PICKS"]
     links = sum(1 for ws in wb for row in ws.iter_rows() for c in row if c.hyperlink)
-    rep.add("PASS" if not missing and first_ok else "FAIL", "1. XLSX opens with the expected sheets",
+    hidden = [f"{ws.title}!{k}" for ws in wb for k, d in ws.column_dimensions.items() if d.hidden] + \
+        [ws.title for ws in wb if ws.sheet_state != "visible"]
+    rep.add("PASS" if not hidden else "FAIL", f"[{tag}] 1c. No hidden columns or sheets", ", ".join(hidden[:5]))
+    rep.add("PASS" if not missing and first_ok else "FAIL", f"[{tag}] 1. XLSX opens with the expected sheets",
             f"{len(wb.sheetnames)} sheets, first = {wb.sheetnames[0]}, {links} hyperlinks"
             + (f", missing {missing}" if missing else ""))
     clipped = []
-    for name in ("CLIENT_TOP_PICKS", "EXECUTIVE_SHORTLIST"):
+    for name in (names["CLIENT_TOP_PICKS"], names["EXECUTIVE_SHORTLIST"]):
         if name not in wb.sheetnames:
             continue
         ws = wb[name]
@@ -66,18 +85,18 @@ def xlsx_checks(path: Path, rep: Report, production: bool) -> list[str]:
                 width = ws.column_dimensions[c.column_letter].width or 8.43
                 if len(str(c.value)) > width * 1.15:
                     clipped.append(f"{name}!{c.coordinate}")
-    rep.add("PASS" if not clipped else "FAIL", "4. No clipped (unwrapped, overflowing) cells",
+    rep.add("PASS" if not clipped else "FAIL", f"[{tag}] 4. No clipped (unwrapped, overflowing) cells",
             ", ".join(clipped[:8]) + (" …" if len(clipped) > 8 else ""))
     urls = []
-    if "CLIENT_TOP_PICKS" in wb.sheetnames:
-        for row in wb["CLIENT_TOP_PICKS"].iter_rows(min_row=5):
+    if names["CLIENT_TOP_PICKS"] in wb.sheetnames:
+        for row in wb[names["CLIENT_TOP_PICKS"]].iter_rows(min_row=5):
             for c in row:
                 if c.hyperlink and c.hyperlink.target:
                     urls.append(c.hyperlink.target)
     if production:
         hits = [f"{ws.title}!{c.coordinate}" for ws in wb for row in ws.iter_rows() for c in row
                 if isinstance(c.value, str) and DEMO_RX.search(c.value)]
-        rep.add("PASS" if not hits else "FAIL", "6. No demo/synthetic data in the workbook", ", ".join(hits[:5]))
+        rep.add("PASS" if not hits else "FAIL", f"[{tag}] 6. No demo/synthetic data in the workbook", ", ".join(hits[:5]))
     return urls
 
 
@@ -123,12 +142,12 @@ def render_sheet_png(path: Path, sheet: str, out_png: Path) -> None:
 
 
 # --------------------------------------------------------------------------- PDF
-def pdf_checks(path: Path, rep: Report, out_dir: Path, production: bool) -> list[str]:
+def pdf_checks(path: Path, rep: Report, out_dir: Path, production: bool, tag: str = "EN") -> list[str]:
     import pymupdf
     try:
         doc = pymupdf.open(path)
     except Exception as exc:  # noqa: BLE001
-        rep.add("FAIL", "2. PDF opens", str(exc))
+        rep.add("FAIL", f"[{tag}] 2. PDF opens", str(exc))
         return []
     n = len(doc)
     overflow, overlaps, links, text_all = [], [], [], []
@@ -156,14 +175,14 @@ def pdf_checks(path: Path, rep: Report, out_dir: Path, production: bool) -> list
                 if inter.get_area() / small > 0.35:
                     overlaps.append(f"p{i}: '{lines[a][1][:20]}' × '{lines[b][1][:20]}'")
         links += [ln.get("uri") for ln in page.get_links() if ln.get("uri")]
-    rep.add("PASS" if 6 <= n <= 10 else "WARN", "2. PDF opens and every page renders",
-            f"{n} pages (target 6–10); page images in {out_dir}")
-    rep.add("PASS" if not overflow else "FAIL", "4b. No text running off the page", "; ".join(overflow[:5]))
-    rep.add("PASS" if not overlaps else "FAIL", "5. No overlapping text", "; ".join(overlaps[:5]))
+    rep.add("PASS" if 6 <= n <= 12 else "WARN", f"[{tag}] 2. PDF opens and every page renders",
+            f"{n} pages (target 6–12); page images in {out_dir}")
+    rep.add("PASS" if not overflow else "FAIL", f"[{tag}] 4b. No text running off the page", "; ".join(overflow[:5]))
+    rep.add("PASS" if not overlaps else "FAIL", f"[{tag}] 5. No overlapping text", "; ".join(overlaps[:5]))
     if production:
         joined = "\n".join(text_all)
         hits = DEMO_RX.findall(joined)
-        rep.add("PASS" if not hits else "FAIL", "6b. No demo/synthetic wording in the PDF", ", ".join(sorted(set(hits))))
+        rep.add("PASS" if not hits else "FAIL", f"[{tag}] 6b. No demo/synthetic wording in the PDF", ", ".join(sorted(set(hits))))
     return links
 
 
@@ -253,25 +272,134 @@ def rule_checks(ranked: pd.DataFrame, cfg: dict, rep: Report, production: bool) 
     rep.add("INFO", "Top-10 availability", ", ".join(f"{k} {v}" for k, v in counts.items()))
 
 
-def final_qa(ranked: pd.DataFrame, paths, cfg: dict, token: str | None, http,
+def devanagari_checks(pdf: Path, rep: Report) -> None:
+    """Hindi PDF: Devanagari is present, set in a Devanagari font, with no tofu / replacement / dotted-circle glyphs
+    (Chromium draws U+25CC when a vowel sign cannot attach — the typical sign of broken shaping)."""
+    import pymupdf
+    doc = pymupdf.open(pdf)
+    wrong_font, bad, n_dev = set(), [], 0
+    for i, page in enumerate(doc, start=1):
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                for sp in line["spans"]:
+                    txt = sp["text"]
+                    if DEVANAGARI.search(txt):
+                        n_dev += len(DEVANAGARI.findall(txt))
+                        if "devanagari" not in sp["font"].lower():
+                            wrong_font.add(sp["font"])
+                    if any(ch in txt for ch in ("\ufffd", "\u25a1", "\u25cc", "\u0000")):
+                        bad.append(f"p{i}: '{txt[:25]}'")
+    fonts = {f[3] for page in doc for f in page.get_fonts()}
+    # English prose leaking into the Hindi report (names, addresses, URLs and codes are allowed; sentences are not)
+    prose = re.compile(r"\b(the|from|with|within|listing|says|approximate|mapped|major road|and|of|is|not|only|"
+                       r"confirm|maintenance|rent|furnished|noise|bedroom)\b", re.I)
+    leaks = []
+    for i, page in enumerate(doc, start=1):
+        for line in page.get_text().splitlines():
+            clean = re.sub(r"https?://\S+|\S+\.xlsx|Miraflores Rental Shortlist", "", line)
+            if prose.search(clean):
+                leaks.append(f"p{i}: '{line.strip()[:60]}'")
+    rep.add("PASS" if not leaks else "FAIL", "[HI] 19. No English prose left in the Hindi report",
+            f"{len(leaks)} lines" + (f": {leaks[:4]}" if leaks else ""))
+    rep.add("PASS" if n_dev > 2000 and not wrong_font and not bad else "FAIL",
+            "[HI] 14. Devanagari renders with a Devanagari font (no boxes, broken signs or replacement glyphs)",
+            f"{n_dev} Devanagari characters; fonts: {', '.join(sorted(x for x in fonts if 'Devanagari' in x))}"
+            + (f"; non-Devanagari font used for Hindi: {sorted(wrong_font)}" if wrong_font else "")
+            + (f"; bad glyphs: {bad[:3]}" if bad else ""))
+
+
+def _html_facts(html_path: Path) -> tuple[list[dict], list[dict], list[list[str]]]:
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
+    top5 = [{k: v for k, v in tr.attrs.items() if k.startswith("data-")}
+            for tr in soup.select("table.top5 tr[data-rank], tr.br2")]
+    cards = [{k: v for k, v in d.attrs.items() if k.startswith("data-")} for d in soup.select("div.card[data-rank]")]
+    nums = [sorted(re.findall(r"\d[\d,]*(?:\.\d+)?", d.get_text(" "))) for d in soup.select("div.card[data-rank]")]
+    return top5, cards, nums
+
+
+def parity_checks(paths: dict, rep: Report) -> None:
+    """English is the source of truth: the Hindi files must carry exactly the same facts."""
+    import pymupdf
+    from openpyxl import load_workbook
+    from ..reporting.i18n import codes_hi, language, t
+    (en_x, en_p, en_t), (hi_x, hi_p, hi_t) = paths["en"], paths["hi"]
+    # ---- report: every Top-5 row and Top-10 card, attribute by attribute, plus the numbers printed in each card
+    e5, ec, en_nums = _html_facts(en_p.with_suffix(".html"))
+    h5, hc, hi_nums = _html_facts(hi_p.with_suffix(".html"))
+    diffs = [f"top5 #{a.get('data-rank')}" for a, b in zip(e5, h5) if a != b] + \
+            [f"card #{a.get('data-rank')}" for a, b in zip(ec, hc) if a != b]
+    ok = len(e5) == len(h5) and len(ec) == len(hc) and not diffs
+    rep.add("PASS" if ok else "FAIL", "15. EN = HI: Top 5 and Top 10 (rank, id, URL, rent, maintenance, normalised USD, "
+            "total, bedrooms, area, furnished, noise category, risk, confidence, status, score, budget class)",
+            f"{len(e5)} + {len(ec)} compared" + (f"; differ: {diffs[:5]}" if diffs else ""))
+    num_diff = [i + 1 for i, (a, b) in enumerate(zip(en_nums, hi_nums)) if a != b]
+    rep.add("PASS" if not num_diff else "FAIL", "15b. EN = HI: every number printed in each Top-10 card",
+            "identical" if not num_diff else f"cards {num_diff}")
+    def links(p):
+        raw = [ln.get("uri") for page in pymupdf.open(p) for ln in page.get_links() if ln.get("uri")]
+        return [u for i, u in enumerate(raw) if i == 0 or u != raw[i - 1]]   # a wrapped link = several rects
+    el, hl = links(en_p), links(hi_p)
+    rep.add("PASS" if el == hl and el else "FAIL", "15c. EN = HI: PDF hyperlinks identical and in the same order",
+            f"{len(el)} links")
+    # ---- workbook: every cell of the client sheets; numbers / links / codes equal, text = its Hindi translation
+    ew, hw = load_workbook(en_x), load_workbook(hi_x)
+    names = SHEET_NAMES["HI"]
+    bad = []
+    with language("hi"):
+        for sheet in ("CLIENT_TOP_PICKS", "EXECUTIVE_SHORTLIST", "ALL_MATCHES", "STRETCH_NEGOTIABLE", "NEAR_MISSES"):
+            a, b = ew[sheet], hw[names[sheet]]
+            if (a.max_row, a.max_column) != (b.max_row, b.max_column):
+                bad.append(f"{sheet}: shape differs")
+                continue
+            for ra, rb in zip(a.iter_rows(), b.iter_rows()):
+                for ca, cb in zip(ra, rb):
+                    if (ca.hyperlink.target if ca.hyperlink else None) != (cb.hyperlink.target if cb.hyperlink else None):
+                        bad.append(f"{sheet}!{ca.coordinate} link")
+                    elif not isinstance(ca.value, str) and ca.value != cb.value:
+                        bad.append(f"{sheet}!{ca.coordinate} value")
+                    elif isinstance(ca.value, str) and cb.value not in (ca.value, t(ca.value, record=False),
+                                                                          codes_hi(ca.value)) \
+                            and not str(cb.value).startswith(ca.value.split(" · ")[0]):
+                        bad.append(f"{sheet}!{ca.coordinate} text")
+    rep.add("PASS" if not bad else "FAIL", "16. EN = HI workbook: same rows, order, numbers, links and codes; text only "
+            "translated", f"{len(bad)} differences" + (f": {bad[:6]}" if bad else ""))
+    # ---- contact templates: the same listings and links in the same order
+    url_rx = re.compile(r"https?://\S+")
+    eu, hu = url_rx.findall(en_t.read_text(encoding="utf-8")), url_rx.findall(hi_t.read_text(encoding="utf-8"))
+    rep.add("PASS" if eu == hu else "FAIL", "17. EN = HI contact templates: same links in the same order", f"{len(eu)} links")
+
+
+def final_qa(ranked: pd.DataFrame, paths: dict, cfg: dict, token: str | None, http,
              production: bool = True) -> tuple[list[str], bool]:
-    xlsx, pdf, txt = paths
+    from ..reporting.i18n import MISSING
     rep = Report()
-    qa_dir = K.PROCESSED / "qa" if production else Path(pdf).parent / "qa"
-    qa_dir.mkdir(parents=True, exist_ok=True)
-    urls = xlsx_checks(Path(xlsx), rep, production)
-    try:
-        render_sheet_png(Path(xlsx), "CLIENT_TOP_PICKS", qa_dir / "xlsx_client_top_picks.png")
-        rep.add("PASS", "1b. XLSX rendered for visual review", str((qa_dir / "xlsx_client_top_picks.png").name))
-    except Exception as exc:  # noqa: BLE001
-        rep.add("WARN", "1b. XLSX render", f"{type(exc).__name__}: {exc}")
-    pdf_links = pdf_checks(Path(pdf), rep, qa_dir, production)
+    urls = []
+    for lang in ("en", "hi"):
+        tag = lang.upper()
+        xlsx, pdf, txt = paths[lang]
+        qa_dir = (K.PROCESSED / "qa" if production else Path(pdf).parent / "qa") / lang
+        qa_dir.mkdir(parents=True, exist_ok=True)
+        u = xlsx_checks(Path(xlsx), rep, production, tag)
+        urls = urls or u
+        try:
+            render_sheet_png(Path(xlsx), SHEET_NAMES[tag]["CLIENT_TOP_PICKS"], qa_dir / "xlsx_client_top_picks.png")
+            rep.add("PASS", f"[{tag}] 1b. XLSX rendered for visual review", str(qa_dir / "xlsx_client_top_picks.png"))
+        except Exception as exc:  # noqa: BLE001
+            rep.add("WARN", f"[{tag}] 1b. XLSX render", f"{type(exc).__name__}: {exc}")
+        pdf_links = pdf_checks(Path(pdf), rep, qa_dir, production, tag)
+        if production:
+            txt_hits = DEMO_RX.findall(Path(txt).read_text(encoding="utf-8"))
+            rep.add("PASS" if not txt_hits else "FAIL", f"[{tag}] 6d. No demo data in contact templates",
+                    ", ".join(set(txt_hits)))
+            rep.add("PASS" if pdf_links else "FAIL", f"[{tag}] 3b. PDF contains clickable links", f"{len(pdf_links)} links")
+    devanagari_checks(Path(paths["hi"][1]), rep)
+    rep.add("PASS" if not MISSING else "FAIL", "[HI] 18. No untranslated client-facing text",
+            f"{len(MISSING)} strings" + (f": {sorted(MISSING)[:6]}" if MISSING else ""))
+    parity_checks(paths, rep)
     if production:
-        txt_hits = DEMO_RX.findall(Path(txt).read_text(encoding="utf-8"))
-        rep.add("PASS" if not txt_hits else "FAIL", "6d. No demo data in contact templates", ", ".join(set(txt_hits)))
         link_checks(urls, http, rep, "3. Top-10 hyperlinks (workbook) respond")
-        rep.add("PASS" if pdf_links else "FAIL", "3b. PDF contains clickable links", f"{len(pdf_links)} links")
-    leak_checks([Path(xlsx), Path(pdf), Path(txt)], token, rep)
+    leak_checks([Path(p) for v in paths.values() for p in v], token, rep)
     rule_checks(ranked, cfg, rep, production)
     if production:
         top_urls = list(ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category")

@@ -123,6 +123,25 @@ def pair_score(a: pd.Series, b: pd.Series, cfg: dict) -> tuple[float, list[str],
     elif c is False and not _close(a.get("rent_usd"), b.get("rent_usd"), 0.15):
         s -= 0.30
 
+    c = _close(a.get("bathrooms"), b.get("bathrooms"), 0.0)
+    if c is True:
+        s += 0.05
+        why.append("same bathrooms")
+    elif c is False:
+        s -= 0.30
+
+    ma, mb = _num(a.get("maintenance_pen")), _num(b.get("maintenance_pen"))
+    c = _close(ma, mb, d["price_tolerance"])
+    if c is True:
+        s += 0.05
+        why.append("same maintenance")
+    elif c is False and not _close(ma, mb, 0.15):
+        s -= 0.15
+
+    if a.get("advertiser_key") and a.get("advertiser_key") == b.get("advertiser_key"):
+        s += 0.10
+        why.append("same advertiser")
+
     if a.get("phone") and a.get("phone") == b.get("phone"):
         s += 0.25
         why.append("same phone")

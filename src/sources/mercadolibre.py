@@ -225,7 +225,8 @@ def to_listing(card: dict, detail: dict | None, scraped_at: str) -> Listing:
 def collect_mercadolibre(scfg: dict, cfg: dict, http: PoliteClient, mode: str) -> SourceResult:
     res = SourceResult(source="mercadolibre", method="direct HTML (robots.txt respected)")
     delay = float(scfg.get("request_delay_s", 2.5))
-    max_items = cfg["cost_control"]["validation_max_items"] if mode == "validate" else 10_000
+    # validation sample: the same size as one portal's two bedroom segments together (free source, no cost)
+    max_items = 2 * cfg["cost_control"]["validation_items_per_segment"] if mode == "validate" else 10_000
     pages = 1 if mode == "validate" else int(scfg["max_pages"])
     max_details = min(max_items, int(scfg["max_details"]))
     scraped = now_iso()

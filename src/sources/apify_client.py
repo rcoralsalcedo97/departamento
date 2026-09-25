@@ -21,6 +21,7 @@ from ..http_client import NetworkBlocked, PoliteClient
 
 API = "https://api.apify.com/v2"
 TERMINAL = {"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"}
+WAIT_TIMEOUT_S = 90         # read timeout for calls that long-poll with waitForFinish=60 (client default is 30 s)
 
 
 class ApifyError(RuntimeError):
@@ -179,14 +180,16 @@ class ApifyClient:
         self.http = http
         self.headers = dict(auth.headers)
 
-    def _get(self, path: str, **params) -> Any:
-        r = self.http.request_json("GET", f"{API}{path}", headers=self.headers, params=params)
+    def _get(self, path: str, timeout: float | None = None, **params) -> Any:
+        kw = {"timeout": timeout} if timeout else {}
+        r = self.http.request_json("GET", f"{API}{path}", headers=self.headers, params=params, **kw)
         if r.status_code >= 400:
             raise ApifyError(f"GET {path} → HTTP {r.status_code}: {_scrub(r.text[:300])}")
         return r.json()
 
-    def _post(self, path: str, body: Any = None, **params) -> Any:
-        r = self.http.request_json("POST", f"{API}{path}", headers=self.headers, params=params, json=body)
+    def _post(self, path: str, body: Any = None, timeout: float | None = None, **params) -> Any:
+        kw = {"timeout": timeout} if timeout else {}
+        r = self.http.request_json("POST", f"{API}{path}", headers=self.headers, params=params, json=body, **kw)
         if r.status_code >= 400:
             raise ApifyError(f"POST {path} → HTTP {r.status_code}: {_scrub(r.text[:300])}")
         return r.json()
@@ -212,48 +215,97 @@ class ApifyClient:
                 props[req] = {**props[req], "required": True}
         return props
 
-    def monthly_usage_usd(self) -> float | None:
+    def account_headroom_usd(self) -> tuple[float | None, str]:
+        """Remaining Apify account allowance this billing cycle (the account's own hard limit)."""
         try:
             data = self._get("/users/me/limits")["data"]
-            return float((data.get("current") or {}).get("monthlyUsageUsd"))
-        except Exception:  # noqa: BLE001 — informational only
-            return None
+            limit = float((data.get("limits") or {}).get("maxMonthlyUsageUsd"))
+            used = float((data.get("current") or {}).get("monthlyUsageUsd"))
+        except Exception as exc:  # noqa: BLE001
+            return None, f"account limits unavailable ({type(exc).__name__})"
+        cycle = data.get("monthlyUsageCycle") or {}
+        return max(0.0, limit - used), (f"Apify account: USD {used:.3f} used of USD {limit:.2f} monthly limit "
+                                        f"(cycle {str(cycle.get('startAt'))[:10]} → {str(cycle.get('endAt'))[:10]})")
 
-    @staticmethod
-    def estimate_cost(info: dict, max_items: int) -> tuple[float | None, str]:
-        pricing = (info.get("pricingInfos") or [{}])[-1]
-        model = pricing.get("pricingModel", "UNKNOWN")
-        if model == "PRICE_PER_DATASET_ITEM":
-            unit = float(pricing.get("pricePerUnitUsd") or 0)
-            return unit * max_items, f"{model}: ${unit:.4f}/item"
-        if model == "PAY_PER_EVENT":
-            events = ((pricing.get("pricingPerEvent") or {}).get("actorChargeEvents")) or {}
-            per_item = [float(e.get("eventPriceUsd") or 0) for name, e in events.items()
-                        if any(k in name.lower() for k in ("result", "item", "listing", "detail", "property"))]
-            start = sum(float(e.get("eventPriceUsd") or 0) for name, e in events.items() if "start" in name.lower())
-            if per_item:
-                return start + sum(per_item) * max_items, (f"{model}: " + ", ".join(
-                    f"{n}=${float(e.get('eventPriceUsd') or 0):.4f}" for n, e in events.items()))
-            return None, f"{model}: events {sorted(events)} (per-item price not identified)"
-        if model == "FREE":
-            return 0.0, "FREE (platform usage may still apply)"
-        if model == "FLAT_PRICE_PER_MONTH":
-            return None, f"{model}: rental ${pricing.get('pricePerUnitUsd')}/month (trial may apply)"
-        return None, model
+    def run_record(self, run_id: str) -> dict:
+        return self._get(f"/actor-runs/{run_id}")["data"]
+
+    def settled_cost(self, run: dict, fallback_usd: float, n_items: int | None = None,
+                     settle_s: float = 90.0) -> tuple[float, str]:
+        """Actual charge of a finished run, read from Apify's own run record.
+
+        Apify books event charges asynchronously: right after a run ends BOTH ``chargedEventCounts``
+        and ``usageTotalUsd`` can still be short (validation 2 read USD 0.01 for a run later billed
+        USD 0.07). So the charge is never taken below a floor derived from what was actually
+        delivered — one-time start events + ``n_items`` × the primary per-record price — and the
+        record is re-read until it reaches that floor (or ``settle_s`` passes). The larger figure
+        wins. With no usable figure at all, the conservative worst case is returned."""
+        deadline = time.monotonic() + settle_s
+        rec = run
+        while True:
+            try:
+                rec = self.run_record(run["id"])
+            except (ApifyError, NetworkBlocked, KeyError):
+                pass
+            computed, detail = charged_from_record(rec)
+            reported = rec.get("usageTotalUsd")
+            reported = float(reported) if reported is not None else None
+            floor = delivered_floor(rec, n_items)
+            settled = (computed is not None and reported is not None and reported + 5e-4 >= computed
+                       and computed + 5e-4 >= (floor or 0.0))
+            if settled or time.monotonic() > deadline:
+                break
+            time.sleep(5)
+        figures = [x for x in (computed, reported, floor) if x is not None]
+        if not figures:
+            return fallback_usd, f"ESTIMATED worst case USD {fallback_usd:.3f} (Apify reported no charge data)"
+        cost = max(figures)
+        state = "settled" if settled else "NOT yet settled — floor from delivered records applied"
+        return cost, (f"ACTUAL from Apify run record {rec.get('id')} ({state}): {detail or 'no event counts'}; "
+                      f"usageTotalUsd={reported if reported is not None else 'n/a'}; delivered-records floor "
+                      f"USD {floor if floor is not None else 0:.3f}")
+
+    def project_spend(self, actor_ids: set[str], since_iso: str) -> tuple[float, list[str]]:
+        """Actual cumulative spend of this project: every run of the project's actors since the project
+        start, priced from each run record. Raises ApifyError if the history cannot be read."""
+        total, lines, offset = 0.0, [], 0
+        while True:
+            page = self._get("/actor-runs", desc="true", limit=250, offset=offset)["data"]
+            items = page.get("items") or []
+            for it in items:
+                if it.get("actId") not in actor_ids or str(it.get("startedAt")) < since_iso:
+                    continue
+                rec = self.run_record(it["id"])
+                computed, detail = charged_from_record(rec)
+                reported = rec.get("usageTotalUsd")
+                figures = [x for x in (computed, float(reported) if reported is not None else None) if x is not None]
+                cost = max(figures) if figures else None
+                if cost is None:
+                    raise ApifyError(f"run {it['id']} has no charge data — cannot verify project spend")
+                total += cost
+                lines.append(f"{str(rec.get('startedAt'))[:19]}Z run {rec.get('id')} ({rec.get('status')}): "
+                             f"USD {cost:.3f} — {detail}")
+            offset += len(items)
+            if not items or offset >= int(page.get("total") or 0):
+                break
+        return total, lines
 
     # ------------------------------------------------------------------ runs
     def run_actor(self, actor_id: str, run_input: dict, max_items: int, max_charge_usd: float,
                   timeout_s: int = 1200) -> tuple[dict, list[dict]]:
+        self.last_run_id = None
         run = self._post(
             f"/acts/{actor_id.replace('/', '~')}/runs", run_input,
-            maxItems=max_items, maxTotalChargeUsd=f"{max_charge_usd:.2f}", waitForFinish=60,
+            maxItems=max_items, maxTotalChargeUsd=f"{max_charge_usd:.3f}", waitForFinish=60,
+            timeout=WAIT_TIMEOUT_S,
         )["data"]
+        self.last_run_id = run.get("id")
         deadline = time.monotonic() + timeout_s
         while run.get("status") not in TERMINAL:
             if time.monotonic() > deadline:
                 self._post(f"/actor-runs/{run['id']}/abort")
                 raise ApifyError(f"run {run['id']} exceeded {timeout_s}s and was aborted")
-            run = self._get(f"/actor-runs/{run['id']}", waitForFinish=60)["data"]
+            run = self._get(f"/actor-runs/{run['id']}", waitForFinish=60, timeout=WAIT_TIMEOUT_S)["data"]
         items: list[dict] = []
         if run.get("defaultDatasetId"):
             offset = 0
@@ -265,6 +317,117 @@ class ApifyClient:
                 items.extend(batch)
                 offset += len(batch)
         return run, items
+
+
+# ----------------------------------------------------------------------------- cost accounting
+class BudgetStop(ApifyError):
+    """A paid call was refused before launch because it could exceed the remaining budget."""
+
+
+def event_prices(pricing: dict) -> dict[str, float]:
+    """{event name: USD price}. Tiered prices resolve to the most expensive tier (conservative)."""
+    events = ((pricing or {}).get("pricingPerEvent") or {}).get("actorChargeEvents") or {}
+    out = {}
+    for name, ev in events.items():
+        prices = [float(t.get("tieredEventPriceUsd") or 0) for t in (ev.get("eventTieredPricingUsd") or {}).values()]
+        if ev.get("eventPriceUsd") is not None:
+            prices.append(float(ev["eventPriceUsd"]))
+        out[name] = max(prices) if prices else 0.0
+    return out
+
+
+def charged_from_record(run: dict) -> tuple[float | None, str]:
+    """USD actually charged by a run = Σ chargedEventCounts × eventPriceUsd (the run's own pricing)."""
+    pricing = run.get("pricingInfo") or {}
+    counts = run.get("chargedEventCounts")
+    if pricing.get("pricingModel") == "PAY_PER_EVENT" and isinstance(counts, dict):
+        prices = event_prices(pricing)
+        total = sum(float(n or 0) * prices.get(e, 0.0) for e, n in counts.items())
+        detail = " + ".join(f"{e} {n}×{prices.get(e, 0):.4f}" for e, n in counts.items() if n)
+        return total, detail or "no billable events"
+    if pricing.get("pricingModel") == "PRICE_PER_DATASET_ITEM":
+        n = ((run.get("stats") or {}).get("resultCount") or run.get("resultCount"))
+        if n is not None:
+            unit = float(pricing.get("pricePerUnitUsd") or 0)
+            return float(n) * unit, f"{n} items × {unit:.4f}"
+    return None, ""
+
+
+def delivered_floor(run: dict, n_items: int | None) -> float | None:
+    """Least a PAY_PER_EVENT run can have billed: its start events + one primary event per delivered record."""
+    pricing = run.get("pricingInfo") or {}
+    if n_items is None or pricing.get("pricingModel") != "PAY_PER_EVENT":
+        return None
+    prices = event_prices(pricing)
+    events = ((pricing.get("pricingPerEvent") or {}).get("actorChargeEvents")) or {}
+    mem = int(((run.get("options") or {}).get("memoryMbytes")) or 1024)
+    start = sum(prices[n] * max(1, -(-mem // 1024)) for n, e in events.items()
+                if e.get("isOneTimeEvent") and "start" in n.lower())
+    primary = [prices[n] for n, e in events.items() if e.get("isPrimaryEvent")] or \
+              [prices[n] for n in events if n.lower() in ("result", "item", "listing")]
+    if not primary:
+        return None              # per-record price unknown: no floor (the caller falls back to the worst case)
+    return start + n_items * primary[0]
+
+
+def worst_case_cost(info: dict, max_items: int, run_input: dict, memory_mb: int = 1024) -> tuple[float | None, str]:
+    """Most a run can bill: every start event plus every per-item event for ``max_items`` records, at
+    the highest price tier. Opt-in AI add-ons are left out only while no ``*Ai*`` input is switched on.
+    None = pricing not understood (the caller then assumes its configured conservative ceiling)."""
+    pricing = (info.get("pricingInfos") or [{}])[-1]
+    model = pricing.get("pricingModel", "UNKNOWN")
+    if model == "PAY_PER_EVENT":
+        prices = event_prices(pricing)
+        events = ((pricing.get("pricingPerEvent") or {}).get("actorChargeEvents")) or {}
+        ai_on = any(v is True and re.search(r"(?:^|with)Ai[A-Z]|(?:^|_)ai_", k) for k, v in run_input.items())
+        start = sum(prices[n] * max(1, -(-memory_mb // 1024)) for n, e in events.items() if e.get("isOneTimeEvent"))
+        per_item = {n: prices[n] for n, e in events.items()
+                    if not e.get("isOneTimeEvent") and (ai_on or not n.lower().startswith("ai_"))}
+        desc = f"{model}: start USD {start:.3f} + {max_items} × (" + \
+            " + ".join(f"{n} {p:.4f}" for n, p in per_item.items()) + ")"
+        return start + max_items * sum(per_item.values()), desc
+    if model == "PRICE_PER_DATASET_ITEM":
+        unit = float(pricing.get("pricePerUnitUsd") or 0)
+        return unit * max_items, f"{model}: {max_items} × {unit:.4f}"
+    return None, f"{model}: pricing not understood"
+
+
+def paid_run(client: ApifyClient, budget, actor_id: str, info: dict, run_input: dict, max_items: int,
+             label: str, fallback_usd: float, timeout_s: int = 1200) -> tuple[dict, list[dict], float, str]:
+    """The only way this project launches a paid Actor run.
+
+    1. price the worst case for this call; refuse (BudgetStop) if it could exceed what is left;
+    2. launch with maxTotalChargeUsd = that worst case (a second, Apify-side ceiling);
+    3. read the actual charge back from the run record and add it to the cumulative spend.
+    If the run's outcome is lost mid-way, it is aborted and charged at its worst case."""
+    worst, how = worst_case_cost(info, max_items, run_input)
+    if worst is None:
+        worst, how = fallback_usd, f"{how} — assuming conservative ceiling USD {fallback_usd:.2f}"
+    if worst > budget.remaining:
+        raise BudgetStop(f"{label}: worst case USD {worst:.3f} ({how}) exceeds remaining budget "
+                         f"USD {budget.remaining:.3f} — not launched")
+    try:
+        run, items = client.run_actor(actor_id, run_input, max_items, worst, timeout_s=timeout_s)
+    except Exception as exc:
+        run_id = getattr(client, "last_run_id", None)
+        if run_id:
+            try:
+                client._post(f"/actor-runs/{run_id}/abort")
+            except Exception:  # noqa: BLE001 — best effort; it may already be finished
+                pass
+            try:
+                cost, basis = client.settled_cost({"id": run_id}, worst, None)
+            except Exception:  # noqa: BLE001
+                cost, basis = worst, f"ESTIMATED worst case USD {worst:.3f} (run {run_id} outcome unknown)"
+            budget.charge(cost, label, basis, run_id)
+        elif not (isinstance(exc, ApifyError) and "POST" in str(exc)):
+            # the start request itself failed without an HTTP refusal (e.g. a timeout): the run may exist
+            budget.charge(worst, label, f"ESTIMATED worst case USD {worst:.3f} (start request failed: "
+                                        f"{type(exc).__name__}; run may have started)")
+        raise ApifyError(f"{label}: {type(exc).__name__}: {exc}") from exc
+    cost, basis = client.settled_cost(run, worst, len(items))
+    budget.charge(cost, label, basis, run.get("id"))
+    return run, items, cost, f"{basis} · pre-launch worst case USD {worst:.3f} ({how})"
 
 
 def _scrub(text: str) -> str:

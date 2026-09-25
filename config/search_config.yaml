@@ -26,6 +26,9 @@ budget:
   # this many fit points to be ranked above it.
   strict_preference_margin: 5
   stretch_max_rent: 1100       # 1,001–1,100 → STRETCH_NEGOTIABLE sheet only
+  # Up to this % above the stretch ceiling (1% = USD 11, typically an FX-conversion effect) → BORDERLINE:
+  # shown on the NEAR_MISSES sheet, never budget-compliant, never in the shortlist.
+  borderline_max_over_pct: 1.0
   # Portal-side price ceiling. Slightly above stretch so PEN-priced listings converted by
   # the portal at a different rate are not lost. Every record is re-validated after extraction.
   query_max_rent: 1150
@@ -148,52 +151,55 @@ shortlist:
   alternatives_max: 20
 
 cost_control:
-  max_external_usd: 5.00         # hard ceiling for paid scraping in one full run
-  validation_max_items: 15       # Gate 2: 10–20 records per source
+  # PROJECT-WIDE hard ceiling for paid scraping — all pipeline runs together, not per run. Spend already
+  # made is read back from Apify's own run records (every run of the project's actors since
+  # project_start_utc) before any new paid call; if that history cannot be read, paid calls are blocked.
+  max_external_usd: 5.00
+  project_start_utc: "2026-09-24T00:00:00Z"
+  # Assumed cost of a run whose pricing cannot be parsed — an unknown cost is never treated as zero.
+  unknown_pricing_run_usd: 0.50
+  validation_items_per_segment: 5  # Gate 2: records per bedroom segment per portal
+  # Records one Actor run can return on the current Apify plan (FREE: 10, per the actors' docs). Runs never
+  # request more, so each run's worst-case price and Apify-side ceiling stay tight. To collect more on this
+  # plan add start URLs (e.g. result pages) to a segment — each URL is its own run. Raise only after an
+  # Apify plan upgrade.
+  apify_max_items_per_run: 10
   full_budget_share: 0.85        # fraction of the remaining budget the full run may commit (rest = QA re-checks)
   target_valid_unique: 30        # stop scaling up once this many valid unique candidates are expected
 
 sources:
+  # Collection is stratified by bedroom count: one Actor run per segment (and per start URL), so one
+  # segment can never consume the other's results. The free Apify plan caps every run at 10 records
+  # and returns list-level data only (no detail pages); see SOURCE_AUDIT.md.
   urbania:
     enabled: true
     method: apify
     actor_id: scrapers_lat/urbania-scraper
-    full_max_items: 160            # upper bound; the run budget scales it down (see cost_control)
+    full_max_items_per_segment: 80   # upper bound; the run budget scales it down (see cost_control)
     # Portal-side filters use Urbania's own URL grammar (verified in its search index, Sep 2026):
     # bedroomsNumber, priceMax, currencyId=2 (USD). Every record is re-validated after extraction.
-    start_urls:
-      - https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=1&priceMax=1150&currencyId=2
-      - https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=2&priceMax=1150&currencyId=2
-    # Used verbatim only if the actor's input schema cannot be read.
-    input:
-      startUrls:
-        - url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=1&priceMax=1150&currencyId=2
-        - url: https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=2&priceMax=1150&currencyId=2
-      withDetails: true
-      priceCurrency: USD
-      maxPrice: 1150
-      minBedrooms: 1
-      maxBedrooms: 2
+    segments:
+      - bedrooms: 1
+        start_urls:
+          - https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=1&priceMax=1150&currencyId=2
+      - bedrooms: 2
+        start_urls:
+          - https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=2&priceMax=1150&currencyId=2
     base_url: https://urbania.pe
 
   adondevivir:
     enabled: true
     method: apify
     actor_id: scrapers_lat/adondevivir-scraper
-    full_max_items: 120
-    # Bedroom-filtered pages (verified in the search index); price filtered by actor input where supported.
-    start_urls:
-      - https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-1-dormitorio.html
-      - https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-2-dormitorios.html
-    input:
-      startUrls:
-        - url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-1-dormitorio.html
-        - url: https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-2-dormitorios.html
-      withDetails: true
-      priceCurrency: USD
-      maxPrice: 1150
-      minBedrooms: 1
-      maxBedrooms: 2
+    full_max_items_per_segment: 60
+    # Bedroom-filtered pages (verified in the search index); price filtered by actor input.
+    segments:
+      - bedrooms: 1
+        start_urls:
+          - https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-1-dormitorio.html
+      - bedrooms: 2
+        start_urls:
+          - https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-2-dormitorios.html
     base_url: https://www.adondevivir.com
 
   mercadolibre:
@@ -214,6 +220,9 @@ sources:
 fx:
   # Primary: BCRP daily interbank sell rate (series PD04640PD). Fetched at run time.
   bcrp_series: PD04640PD
+  # Flag CURRENCY_CONVERSION_MISMATCH when a portal's own USD figure differs from PEN ÷ this run's rate
+  # by more than this many percent (both published figures are kept; ranking uses the normalised one).
+  published_mismatch_flag_pct: 5
   # Fallback used ONLY if the live fetch fails. Documented in RUN_LOG.md when used.
   fallback:
     usd_pen: 3.385

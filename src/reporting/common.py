@@ -95,7 +95,11 @@ def property_label(r) -> str:
     head = f"{beds:.0f}BR" if beds is not None else "?BR"
     if area:
         head += f" · {area:.0f} m²"
-    return f"{head} — {where}" if where else f"{head} — {str(r.get('title') or '')[:60]}"
+    if where:
+        return f"{head} — {where}"
+    # no street or zone published: name the district and the portal listing ID (what the agent will recognise)
+    lid = r.get("source_listing_id")
+    return f"{head} — {r.get('district') or 'Miraflores'}" + (f" · ID {lid}" if lid else "")
 
 
 def location_text(r) -> str:
@@ -132,9 +136,29 @@ def contact_text(r) -> str:
     elif r.get("phone"):
         parts.append(f"Tel. {r['phone']}")
     if not (r.get("whatsapp") or r.get("phone")):
-        parts.append(f"contact form on {sources_text(r) or 'the portal'}")
+        # no phone published (free-plan list output has none): the listing page's own form is the contact path
+        parts.append(f"Contact via listing ({sources_text(r) or 'portal'} contact form)")
     return " · ".join(parts)
 
 
+UTILITY_EN = {"agua": "water", "luz": "electricity", "gas": "gas", "internet": "internet", "wifi": "internet",
+              "cable": "cable TV", "servicios": "utilities", "arbitrios": "municipal fees"}
+
+
+def utilities_text(r) -> str:
+    raw = r.get("utilities_included")
+    if not raw:
+        return "UNKNOWN"
+    return "; ".join(dict.fromkeys(UTILITY_EN.get(x.strip().lower(), x.strip()) for x in str(raw).split(";") if x.strip()))
+
+
 def noise_text(r) -> str:
-    return f"{r.get('noise_risk')} · conf. {str(r.get('noise_confidence') or '').lower()}"
+    return (f"{r.get('noise_label') or 'NOISE UNCERTAIN'} · {r.get('noise_risk') or 'UNKNOWN'} risk · "
+            f"{str(r.get('noise_confidence') or 'low').lower()} confidence")
+
+
+def quietness_value(r):
+    """The 0–100 score only where evidence supports it (location or noise wording); otherwise a dash."""
+    if r.get("quietness_supported") is False or r.get("noise_risk") == "UNKNOWN":
+        return "—"
+    return num(r.get("quietness_score_0_100"))
