@@ -16,15 +16,17 @@ REGISTRY: dict[str, dict] = {
         "public_access": "Public search and detail pages, no login",
         "target_search_url": "https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima",
         "pagination": "Handled by actor (direct: ?page=N)",
-        "detail_pages": "Expected via actor (docs: 'all fields exposed by listing and detail pages')",
-        "contact_data": "Expected: phone / WhatsApp (actor docs)",
-        "coordinates": "Expected (Navent geolocation; may be approximate)",
-        "publication_date": "Expected (relative 'Publicado hace…')",
+        "detail_pages": "Paid Apify plans only ('details' event). On the FREE plan the actor returns list-level "
+                        "output only — confirmed in validation (details events = 0)",
+        "contact_data": "Detail pages only (paid plan): agentPhone / agentWhatsapp. Free plan: none — contact via listing",
+        "coordinates": "Detail pages only (paid plan). Free plan: none — geocoded only from specific address text",
+        "publication_date": "Detail pages only (paid plan: publishDate). Free plan: none",
         "maintenance_fee": "Expected when advertiser publishes 'Mantenimiento'",
         "inventory_hint": "Search index (Sep 2026): 859 apartments for rent in Miraflores",
         "limitations": "Navent platform uses bot protection; direct scraping not attempted beyond one polite "
-                       "request. Actor input names partly undocumented — unknown inputs are dropped and filters "
-                       "re-applied after extraction.",
+                       "request. Actor docs: free Apify plans are capped at 10 records per run and list-level "
+                       "output, so collection runs one Actor run per bedroom segment. Every filter is re-applied "
+                       "after extraction.",
     },
     "adondevivir": {
         "source_name": "Adondevivir",
@@ -33,14 +35,15 @@ REGISTRY: dict[str, dict] = {
         "public_access": "Public search and detail pages, no login",
         "target_search_url": "https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html",
         "pagination": "Handled by actor (direct: -pagina-N.html)",
-        "detail_pages": "Expected via actor",
-        "contact_data": "Expected: agent phone and WhatsApp (actor docs)",
-        "coordinates": "Expected (same Navent backend as Urbania)",
-        "publication_date": "Expected (relative)",
+        "detail_pages": "Paid Apify plans only ('details' event). FREE plan: list-level output only (confirmed)",
+        "contact_data": "Detail pages only (paid plan): agentPhone / agentWhatsapp. Free plan: none — contact via listing",
+        "coordinates": "Detail pages only (paid plan). Free plan: none — geocoded only from specific address text",
+        "publication_date": "Detail pages only (paid plan: publishedDate). Free plan: none",
         "maintenance_fee": "Expected when published",
         "inventory_hint": "Search index (Sep 2026): 821 apartments for rent in Miraflores",
-        "limitations": "Actor docs: free-tier runs capped at 10 listings. Same backend as Urbania, so many "
-                       "listings are cross-posted — handled by de-duplication (shared posting ids).",
+        "limitations": "Actor docs: free Apify plans are capped at 10 listings per run, list-level only. Same "
+                       "backend as Urbania, so many listings are cross-posted under a different posting id — "
+                       "grouped by de-duplication (same photo file, advertiser, description, area, price).",
     },
     "mercadolibre": {
         "source_name": "Mercado Libre Inmuebles Perú",

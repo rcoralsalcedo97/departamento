@@ -147,8 +147,12 @@ def _standard_cf(ws, hdr: int, last: int, cols: list[Col], top5: bool = False):
 
 def _rent_comment(row: dict, col: str) -> str | None:
     if col == "Monthly Rent USD" and row.get("rent_usd_basis") == "CALCULATED":
-        return (f"Published as S/ {C.num(row.get('rent_pen')):,.0f}. Converted at 1 USD = S/ "
+        note = (f"Published as S/ {C.num(row.get('rent_pen')):,.0f}. Converted at 1 USD = S/ "
                 f"{C.num(row.get('fx_rate_usd_pen')):.3f} (see METHODOLOGY).")
+        portal_usd, diff = C.num(row.get("rent_usd_published")), C.num(row.get("rent_usd_published_diff_pct"))
+        if portal_usd is not None and diff is not None:
+            note += f" The portal also shows USD {portal_usd:,.0f} ({diff:+.1f}% vs this rate)."
+        return note
     if col == "Monthly Rent USD" and row.get("rent_pen_basis") == "PUBLISHED" and row.get("rent_usd_basis") == "PUBLISHED":
         return f"Listing publishes both USD and S/ {C.num(row.get('rent_pen')):,.0f}."
     return None

@@ -1,8 +1,10 @@
 """USD/PEN normalisation with explicit provenance.
 
 One rate is fetched per run (BCRP series PD04640PD: SBS banking-system sell rate, the
-same reference SUNAT publishes) and used for every conversion. When a listing publishes
-both currencies, both are kept as PUBLISHED; otherwise the missing one is CALCULATED.
+same reference SUNAT publishes) and used for every conversion. Portal figures are kept
+verbatim in rent_usd_published / rent_pen_published. rent_usd — the only value used for
+budget, ranking, USD/m² and totals — is the USD price when the listing is priced in USD,
+otherwise the PEN price ÷ that one rate (CALCULATED), so every listing is comparable.
 """
 from __future__ import annotations
 
@@ -68,19 +70,30 @@ def apply_currency(lst: Listing, fx: FxRate) -> Listing:
     rate = fx.usd_pen
     lst.fx_rate_usd_pen = rate
 
-    # ---- rent
+    # ---- rent: published figures are preserved; rent_usd is the one comparable value
     if lst.rent_original is not None and lst.rent_currency in ("USD", "PEN"):
+        if lst.rent_usd_published is None and lst.rent_usd_basis == "PUBLISHED":
+            lst.rent_usd_published = lst.rent_usd
+        if lst.rent_pen_published is None and lst.rent_pen_basis == "PUBLISHED":
+            lst.rent_pen_published = lst.rent_pen
         pen, usd = _convert(lst.rent_original, lst.rent_currency, rate)
         if lst.rent_currency == "USD":
+            # priced in USD: that price is already comparable; a published PEN figure is kept as is
+            lst.rent_usd_published = lst.rent_original
             lst.rent_usd, lst.rent_usd_basis = lst.rent_original, "PUBLISHED"
-            if lst.rent_pen is not None and lst.rent_pen_basis == "PUBLISHED":
-                pass  # both published: keep the seller's PEN figure untouched
+            if lst.rent_pen_published is not None:
+                lst.rent_pen, lst.rent_pen_basis = lst.rent_pen_published, "PUBLISHED"
             else:
                 lst.rent_pen, lst.rent_pen_basis = pen, "CALCULATED"
         else:
+            # priced in PEN: convert at the run's single reference rate, even when the portal also shows a
+            # USD figure — those portal figures imply inconsistent rates (3.19–3.78 in the first validation)
+            lst.rent_pen_published = lst.rent_original
             lst.rent_pen, lst.rent_pen_basis = lst.rent_original, "PUBLISHED"
-            if not (lst.rent_usd is not None and lst.rent_usd_basis == "PUBLISHED"):
-                lst.rent_usd, lst.rent_usd_basis = usd, "CALCULATED"
+            lst.rent_usd, lst.rent_usd_basis = usd, "CALCULATED"
+        if lst.rent_usd_published and lst.rent_pen_published:
+            implied = lst.rent_pen_published / rate
+            lst.rent_usd_published_diff_pct = round(100 * (lst.rent_usd_published - implied) / implied, 1)
 
     # ---- maintenance
     if lst.maintenance_included_in_rent:

@@ -132,7 +132,8 @@ def contact_text(r) -> str:
     elif r.get("phone"):
         parts.append(f"Tel. {r['phone']}")
     if not (r.get("whatsapp") or r.get("phone")):
-        parts.append(f"contact form on {sources_text(r) or 'the portal'}")
+        # no phone published (free-plan list output has none): the listing page's own form is the contact path
+        parts.append(f"Contact via listing ({sources_text(r) or 'portal'} contact form)")
     return " · ".join(parts)
 
 

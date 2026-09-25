@@ -33,7 +33,9 @@ from .reporting.excel import build_workbook
 from .reporting.report import build_report_html, html_to_pdf
 from .runlog import RunLog
 from .scoring.scoring import rank, score_all
-from .sources.apify_client import ApifyAuth, resolve_apify_auth
+from .geospatial.geocode import address_evidence
+from .http_client import NetworkBlocked
+from .sources.apify_client import ApifyAuth, ApifyClient, ApifyError, resolve_apify_auth
 from .sources.base import CostBudget, SourceResult, now_iso
 from .sources.manual import collect_manual
 from .sources.mercadolibre import collect_mercadolibre
@@ -64,6 +66,14 @@ PREVIEW_BANNER = "SYNTHETIC DEMO DATA — FORMAT PREVIEW ONLY — THESE ARE NOT 
 
 
 # --------------------------------------------------------------------------- helpers
+def _num(v) -> float | None:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(f) else f
+
+
 def _isnull(v) -> bool:
     return v is None or (isinstance(v, float) and math.isnan(v)) or v == ""
 
@@ -114,6 +124,136 @@ def validation_row(name: str, res: SourceResult) -> dict:
         "ERRORS": "; ".join(res.errors)[:160] or "—",
         "COST": f"USD {res.cost_usd:.3f}",
     }
+
+
+PORTAL_HOSTS = {"urbania": "urbania.pe", "adondevivir": "adondevivir.com", "mercadolibre": "mercadolibre.com.pe"}
+
+
+def usable_url(row: dict) -> bool:
+    """An https link on the listing's own portal that names its posting id."""
+    url = str(row.get("source_url") or "")
+    lid = str(row.get("source_listing_id") or "")
+    host = re.sub(r"^https://", "", url).split("/")[0].lower()
+    return url.startswith("https://") and PORTAL_HOSTS.get(row.get("source"), host) in host and (not lid or lid in url)
+
+
+def validation_analysis(val_results: dict[str, SourceResult], cfg: dict, fx: FxRate, http: PoliteClient | None,
+                        geocode_ok: bool) -> list[tuple[str, list[str]]]:
+    """Run the real normalise → de-duplicate → geocode → classify steps on the validation sample (no OSM
+    layers, no QA, no deliverables) and describe the result per source and bedroom segment."""
+    listings = [lst.model_copy(deep=True) for r in val_results.values() for lst in r.listings]
+    if not listings:
+        return [("Validation sample analysis", ["no records to analyse"])]
+    df = pd.DataFrame([normalize_listing(lst, cfg, fx).model_dump() for lst in listings])
+    df = deduplicate(df, cfg)
+    geo_line = "Nominatim unreachable — no geocoding attempted"
+    if geocode_ok and http is not None:
+        done, errs = geocode_missing(df, cfg, http, K.GEO / "geocode_cache.json", max_queries=40)
+        geo_line = f"Nominatim queries made: {done}" + (f"; errors: {errs}" if errs else "")
+    df["_has_address"] = [address_evidence(r.get("address"), r.get("title"), r.get("description")) is not None
+                          for r in df.to_dict("records")]
+    scored = score_all(df, cfg)                                          # every record
+    ranked = rank(scored, cfg["budget"]["strict_preference_margin"])      # one canonical record per property
+    out: list[tuple[str, list[str]]] = []
+
+    # ---- per source × bedroom segment
+    rows, seen = [], set()
+    for src, res in val_results.items():
+        sub = scored[scored["source"] == src]
+        segs = res.audit.get("segments") or [{"bedrooms": None, "runs": []}]
+        if sub.empty and not res.errors:
+            continue
+        for seg in segs:
+            label = f"{seg['bedrooms']}BR" if seg["bedrooms"] else "all"
+            part = sub[sub["search_segment"] == label] if seg["bedrooms"] else sub
+            recs = part.to_dict("records")
+            n = len(recs)
+
+            def pct(pred, recs=recs, n=n) -> str:
+                return f"{100 * sum(1 for x in recs if pred(x)) / n:.0f}%" if n else "—"
+            groups = set(part["duplicate_group_id"])
+            new = groups - seen
+            seen |= groups
+            cost = sum(r["cost_usd"] for r in seg["runs"]) if seg["runs"] else res.cost_usd
+            rows.append({
+                "SOURCE": src, "BEDROOM SEGMENT": label, "RAW RECORDS": n,
+                "VALID RENT %": pct(lambda x: _num(x.get("rent_usd")) is not None and 150 <= _num(x["rent_usd"]) <= 20000),
+                "VALID BEDROOMS %": pct(lambda x: _num(x.get("bedrooms")) is not None and (
+                    seg["bedrooms"] is None or int(_num(x["bedrooms"])) == seg["bedrooms"])),
+                "VALID AREA %": pct(lambda x: any((_num(a) or 0) >= 12 and (_num(a) or 0) <= 400
+                                                  for a in (x.get("built_area_m2"), x.get("total_area_m2")))),
+                "MAINTENANCE %": pct(lambda x: _num(x.get("maintenance_fee")) is not None
+                                     or x.get("maintenance_included_in_rent") is True),
+                "SPECIFIC ADDRESS %": pct(lambda x: x["_has_address"]),
+                "COORDINATES %": pct(lambda x: _num(x.get("latitude")) is not None),
+                "USABLE URL %": pct(usable_url),
+                "UNIQUE AFTER DEDUPE": len(new),
+                "ACTUAL COST": f"USD {cost:.3f}",
+                "ERRORS": "; ".join(res.errors)[:120] or "—",
+            })
+    out.append(("Validation sample — per source and bedroom segment", md_table(rows) + [
+        "", "VALID BEDROOMS = bedroom count present and equal to the segment searched. UNIQUE AFTER DEDUPE = new "
+        "properties this row adds (rows are counted in order, so a cross-post is credited to the first portal). "
+        "ACTUAL COST = Apify run records of that segment's runs."]))
+
+    # ---- coordinates
+    canon = ranked
+
+    def coord_counts(d: pd.DataFrame) -> str:
+        return (f"listing-provided {int((d['coord_source'] == 'LISTING').sum())} · high-confidence geocode "
+                f"{int((d['geocoding_confidence'] == 'HIGH').sum())} · medium-confidence (street-level) "
+                f"{int((d['geocoding_confidence'] == 'MEDIUM').sum())} · unknown {int(d['latitude'].isna().sum())}")
+    ev_lines = [f"{r['source']}:{r['source_listing_id']} → {r['address_evidence']} → "
+                f"{r.get('geocoding_confidence') or 'no match'}"
+                for r in scored.to_dict("records") if isinstance(r.get("address_evidence"), str)]
+    out.append(("Validation sample — coordinates", [
+        f"all {len(scored)} records: {coord_counts(scored)}", f"{len(canon)} unique properties: {coord_counts(canon)}",
+        geo_line, "District/neighbourhood-only locations are never geocoded (coordinates stay UNKNOWN)."] + ev_lines))
+
+    # ---- currency
+    both = scored[scored["rent_usd_published"].notna() & scored["rent_pen_published"].notna()].copy()
+    both["_abs"] = both["rent_usd_published_diff_pct"].abs()
+    thr = cfg["fx"]["published_mismatch_flag_pct"]
+    cur_lines = [f"Reference rate: 1 USD = S/ {fx.usd_pen:.3f} — {fx.source}",
+                 f"records publishing both currencies: {len(both)}; CURRENCY_CONVERSION_MISMATCH (>{thr}%): "
+                 f"{int((both['_abs'] > thr).sum())}"]
+    for r in both.sort_values("_abs", ascending=False).to_dict("records"):
+        cur_lines.append(f"{r['source']}:{r['source_listing_id']} ({r['rent_currency']}-priced): published S/ "
+                         f"{r['rent_pen_published']:,.0f} · published USD {r['rent_usd_published']:,.0f} · normalised "
+                         f"USD {r['rent_usd']:,.2f} · published vs S/÷rate {r['rent_usd_published_diff_pct']:+.1f}%"
+                         + (" · CURRENCY_CONVERSION_MISMATCH" if r["_abs"] > thr else ""))
+    out.append(("Validation sample — currency normalisation", cur_lines))
+
+    # ---- de-duplication
+    sizes = scored.groupby("duplicate_group_id").size()
+    dup_lines = [f"raw records: {len(scored)} · duplicate groups (≥2 records): {int((sizes > 1).sum())} · "
+                 f"unique properties: {len(sizes)}"]
+    for gid in sizes[sizes > 1].index:
+        g = scored[scored["duplicate_group_id"] == gid].to_dict("records")
+        members = ", ".join(f"{r['source']}:{r['source_listing_id']}" for r in g)
+        first = g[0]
+        dup_lines.append(f"{gid}: {members} — {_num(first['bedrooms']) or 0:.0f}BR · {first.get('total_area_m2') or '?'} m² · "
+                         f"USD {first['rent_usd']:,.0f} — evidence: {first['dedupe_evidence'] or '—'}")
+    poss = ranked[ranked["possible_duplicate_of"].astype(str).str.len() > 0]
+    dup_lines.append(f"possible duplicates kept separate (score close but no identity anchor): {len(poss)}")
+    out.append(("Validation sample — de-duplication", dup_lines))
+
+    # ---- hard-rule survivors (canonical records)
+    def hard_ok(r: dict) -> bool:
+        if r["category"] in ("PRIMARY", "STRETCH"):
+            return True
+        reasons = [x for x in str(r.get("exclusion_reason") or "").split("; ") if x]
+        return r["category"] == "EXCLUDED" and bool(reasons) and all("above stretch ceiling" in x for x in reasons)
+    crecs = canon.to_dict("records")
+    ok = [r for r in crecs if hard_ok(r)]
+    by_beds = {b: sum(1 for r in ok if _num(r.get("bedrooms")) == b) for b in (1, 2)}
+    cats = canon["category"].value_counts().to_dict()
+    reasons = canon[canon["category"] == "EXCLUDED"]["exclusion_reason"].str.split("; ").explode().value_counts()
+    out.append(("Validation sample — Miraflores + rent + apartment + 1–2 bedroom rules", [
+        f"unique properties passing the hard rules: {len(ok)} of {len(crecs)} (1BR {by_beds[1]}, 2BR {by_beds[2]})",
+        f"categories (unique): " + ", ".join(f"{k} {v}" for k, v in cats.items()),
+        "exclusion reasons: " + ("; ".join(f"{k} ({v})" for k, v in reasons.items()) or "none")]))
+    return out
 
 
 def md_table(rows: list[dict]) -> list[str]:
@@ -239,7 +379,10 @@ def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]
                 f"near misses: {meta['n_near']}. External cost: USD {meta['cost']:.2f}."),
         ("Exchange rate", f"1 USD = S/ {fx.usd_pen:.3f} · {fx.source} · {fx.timestamp}. Used for every conversion. "
                           "Values published by the listing are marked PUBLISHED; converted values CALCULATED. "
-                          "When a listing publishes both currencies, both are kept as published."),
+                          "Budget, ranking and USD/m² use one comparable USD value: the USD price for USD-priced "
+                          "listings, otherwise PEN ÷ this rate. The portal's own USD figure is kept separately; "
+                          f"a gap above {cfg['fx']['published_mismatch_flag_pct']}% is flagged "
+                          "CURRENCY_CONVERSION_MISMATCH."),
         ("Fit score (100)", f"Quietness {s['quietness']} · Budget/total cost {s['budget']} · Space/layout {s['space']} · "
                             f"Location/daily livability {s['location']} · Furnishing {s['furnishing']} · "
                             f"Building/security/amenities {s['building']} · Listing quality/freshness {s['listing_quality']}."),
@@ -281,9 +424,12 @@ def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]
                        "Nightlife is never rewarded."),
         ("Value bands", "USD per m² within the same bedroom count, relative to this sample only: lowest quartile "
                         "EXCELLENT_VALUE, then GOOD, FAIR, EXPENSIVE_RELATIVE_TO_SAMPLE. Not an official valuation."),
-        ("De-duplication", "Pairs scored on URL, portal id (Urbania/Adondevivir share posting ids), coordinates, area, "
-                           "price, phone, fuzzy title and description (rapidfuzz), normalised address and shared photo "
-                           "ids. Groups keep every source URL; the most complete record is canonical; conflicts are flagged."),
+        ("De-duplication", "Pairs scored on URL, portal id, coordinates, area, price, bathrooms, maintenance, advertiser, "
+                           "phone, fuzzy title and description (rapidfuzz), normalised address and shared photo ids. A "
+                           "merge also needs a hard identity anchor (same URL or posting id, the same photo file, "
+                           "coordinates within a few metres or the same numbered address): matching price, area and "
+                           "maintenance alone never merge two listings. Groups keep every source URL; the most "
+                           "complete record is canonical; conflicts are flagged."),
         ("Availability", "LIKELY_ACTIVE = returned by a live search at scrape time. ACTIVE_CONFIRMED = source page "
                          "re-opened successfully during QA. Never stated as guaranteed."),
         ("Unknown values", "Shown as UNKNOWN. Nothing is imputed. Maintenance read from description text is used "
@@ -430,25 +576,61 @@ def empty_ranked() -> pd.DataFrame:
 
 def allocate_full_items(cfg: dict, val_results: dict[str, SourceResult], budget: CostBudget,
                         apify_sources: list[str]) -> dict[str, tuple[int, str]]:
-    """Size each paid full run from the *observed* validation cost per item, within the run budget."""
+    """Records per bedroom segment for each paid full run, sized from the *actual* validation cost per
+    record (start events included) within the remaining project budget. Every run is still checked
+    against its own worst case before launch."""
     alloc: dict[str, tuple[int, str]] = {}
-    pool = budget.remaining * cfg["cost_control"]["full_budget_share"]
-    weights = {n: cfg["sources"][n]["full_max_items"] for n in apify_sources}
+    cc = cfg["cost_control"]
+    pool = budget.remaining * cc["full_budget_share"]
+    nseg = {n: len(cfg["sources"][n]["segments"]) for n in apify_sources}
+    weights = {n: cfg["sources"][n]["full_max_items_per_segment"] * nseg[n] for n in apify_sources}
     total_w = sum(weights.values()) or 1
     for n in apify_sources:
         r = val_results[n]
-        cap = cfg["sources"][n]["full_max_items"]
+        cap = cfg["sources"][n]["full_max_items_per_segment"]
         cpi = (r.cost_usd / len(r.raw_records)) if r.raw_records and r.cost_usd else None
-        if cpi is None and r.audit.get("estimated_cost_usd"):
-            cpi = r.audit["estimated_cost_usd"] / max(1, cfg["cost_control"]["validation_max_items"])
+        basis = "observed"
+        if cpi is None:
+            cpi, basis = cc["unknown_pricing_run_usd"] / max(1, cc["validation_items_per_segment"]), "assumed"
         share = pool * weights[n] / total_w
-        if cpi and cpi > 0:
-            items = max(0, min(cap, int(share / cpi)))
-            alloc[n] = (items, f"≈USD {cpi:.4f}/item observed → {items} items within USD {share:.2f}")
-        else:
-            alloc[n] = (cap, "no per-item cost observed (free or unknown) — capped by config; "
-                             "maxTotalChargeUsd still enforces the budget")
+        items = max(0, min(cap, int(share / cpi / nseg[n])))
+        alloc[n] = (items, f"≈USD {cpi:.4f}/record {basis} → {items} records per bedroom segment within USD {share:.2f}")
     return alloc
+
+
+def init_budget(cfg: dict, http: PoliteClient, auth: ApifyAuth, log: RunLog) -> CostBudget:
+    """Project-wide budget: the cap minus the *actual* spend of every earlier run of the project's actors
+    (Apify run records), bounded again by the Apify account's own remaining monthly allowance. If that
+    history cannot be read, the budget is set to zero so no paid call can start."""
+    cc = cfg["cost_control"]
+    cap = float(cc["max_external_usd"])
+    paid = [n for n, sc in cfg["sources"].items() if sc.get("enabled") and sc.get("method") == "apify"]
+    if not paid or not auth.available:
+        return CostBudget(cap)
+    try:
+        client = ApifyClient(auth, http)
+        ids = {client.actor_info(cfg["sources"][n]["actor_id"])["id"] for n in paid}
+        prior, lines = client.project_spend(ids, cc["project_start_utc"])
+        headroom, acct = client.account_headroom_usd()
+    except (ApifyError, NetworkBlocked) as exc:
+        log.section("Apify spend ledger — PAID CALLS BLOCKED", [
+            f"Project spend could not be verified from Apify's run records: {exc}",
+            "An unknown spend is never assumed to be zero, so no paid Actor run will start in this run."])
+        return CostBudget(cap, prior_spent=cap)
+    budget = CostBudget(cap, prior, headroom)
+    log.section("Apify spend ledger — before this run", lines + [
+        f"Project spend so far: USD {prior:.3f} of the USD {cap:.2f} project cap (source: Apify run records of "
+        f"{', '.join(cfg['sources'][n]['actor_id'] for n in paid)} since {cc['project_start_utc']}; each run priced as "
+        "chargedEventCounts × eventPriceUsd, or usageTotalUsd if higher)",
+        acct,
+        f"Usable now: USD {budget.remaining:.3f} (the stricter of the project cap and the account allowance)"])
+    return budget
+
+
+def spend_lines(budget: CostBudget) -> list[str]:
+    return budget.ledger_lines() + [
+        f"This run: USD {budget.run_spent:.3f} · project cumulative: USD {budget.spent:.3f} of USD "
+        f"{budget.max_usd:.2f} · remaining: USD {budget.remaining:.3f}"]
 
 
 def run(mode: str, out: Path | None = None) -> int:
@@ -469,7 +651,7 @@ def run(mode: str, out: Path | None = None) -> int:
         log.write()
         return 0
 
-    budget = CostBudget(cfg["cost_control"]["max_external_usd"])
+    budget = init_budget(cfg, http, auth, log) if mode in ("validate", "full") else CostBudget(0.0)
     fx, fx_err = fetch_fx(cfg, http)
     log.section("Exchange rate", [f"1 USD = S/ {fx.usd_pen:.3f} — {fx.source} — {fx.timestamp}"]
                 + ([f"live fetch failed ({fx_err}); documented fallback used"] if fx_err else []))
@@ -507,18 +689,26 @@ def run(mode: str, out: Path | None = None) -> int:
     vrows = [validation_row(n, r) for n, r in val_results.items()]
     details = []
     for n, r in val_results.items():
-        if r.audit.get("actor_input") is not None:
-            details.append(f"{n}: actor input sent = {json.dumps(r.audit['actor_input'], ensure_ascii=False)}")
-            details.append(f"{n}: actor input schema properties = {r.audit.get('input_properties')}")
-            details.append(f"{n}: pricing = {r.audit.get('pricing')}")
+        if "input_schema" in r.audit:
+            details.append(f"{n}: actor input schema {r.audit['input_schema']}; properties = "
+                           f"{r.audit.get('input_properties')}")
+        for seg in r.audit.get("segments", []):
+            for run in seg["runs"]:
+                details.append(f"{n} {seg['bedrooms']}BR: run {run['run_id']} {run['status']} · {run['items']}/"
+                               f"{run['requested']} records · USD {run['cost_usd']:.3f} · input "
+                               f"{json.dumps(run['input'], ensure_ascii=False)}")
         if r.audit.get("dataset_fields"):
             details.append(f"{n}: dataset fields (non-empty count) = {', '.join(r.audit['dataset_fields'])}")
         if r.notes:
             details.append(f"{n}: notes = {'; '.join(r.notes)}")
-    log.section("Gates 2–3 — validation run (10–20 records/source)", md_table(vrows) + [""] + details)
+    log.section("Gates 2–3 — validation run (per source)", md_table(vrows) + [""] + details)
     audit_rows = build_audit_rows(val_results, cov, statuses)
     write_source_audit_md(audit_rows, probes, now_iso())
     if mode == "validate":
+        geocode_ok = probes.get("nominatim.openstreetmap.org", (False,))[0]
+        for title, lines in validation_analysis(val_results, cfg, fx, http, geocode_ok):
+            log.section(title, lines)
+        log.section("Apify spend — this run", spend_lines(budget))
         log.write()
         print("\nValidation complete. Review SOURCE_AUDIT.md and RUN_LOG.md, then run --mode full.")
         return 0
@@ -544,6 +734,7 @@ def run(mode: str, out: Path | None = None) -> int:
         results[name] = res
         save_json(K.RAW / f"{name}_full_{res.started_at[:19].replace(':', '')}.json", res.raw_records)
     all_listings = [lst for r in results.values() for lst in r.listings]
+    log.section("Apify spend — collection", spend_lines(budget))
     log.section("Gate 4 — full collection", plan + [
         f"{n}: {r.status} · {len(r.listings)} records · cost USD {r.cost_usd:.3f}"
         + (f" · errors: {'; '.join(r.errors)}" if r.errors else "") for n, r in results.items()]

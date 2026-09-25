@@ -19,7 +19,8 @@ from bs4 import BeautifulSoup
 from ..http_client import AccessBlocked, NetworkBlocked, PoliteClient, RobotsDisallowed
 from ..models import Listing
 from ..normalize.text_signals import fold, parse_money, relative_date_days, strip_html
-from .apify_client import ApifyAuth, ApifyClient, ApifyError, build_actor_input, dataset_fields
+from .apify_client import (ApifyAuth, ApifyClient, ApifyError, BudgetStop, build_actor_input, dataset_fields,
+                           paid_run)
 from .base import (CostBudget, SourceResult, iter_label_values, now_iso, pick, to_bool, to_float,
                    to_int)
 
@@ -72,7 +73,11 @@ def _prices(rec: dict) -> tuple[float | None, str | None, dict[str, float]]:
     usd_flat = to_float(pick(rec, "priceUSD", "priceUsd", "price_usd", "usdPrice", "priceInUsd"))
     pen_flat = to_float(pick(rec, "pricePEN", "pricePen", "price_pen", "penPrice", "priceInPen"))
     if amt and cur:
-        return amt, cur, {cur: amt}
+        published = {cur: amt}
+        for c, v in (("USD", usd_flat), ("PEN", pen_flat)):   # the portal's figure in the other currency
+            if v and c not in published:
+                published[c] = v
+        return amt, cur, published
     # only converted flat fields: pick the one that looks like a round, human-typed figure
     if usd_flat or pen_flat:
         candidates = [(c, v) for c, v in (("USD", usd_flat), ("PEN", pen_flat)) if v]
@@ -161,9 +166,12 @@ def _images(rec: dict) -> tuple[str | None, int | None, list[str]]:
                 u = pick(it, "url", "url730x532", "resizeUrl1200x1200", "src", "href", "original", "large")
                 if isinstance(u, str):
                     urls.append(u)
-    main = pick(rec, "mainImage", "mainImageUrl", "thumbnail", "coverImage", "image") or (urls[0] if urls else None)
+    main = pick(rec, "mainImage", "mainImageUrl", "imageUrl", "thumbnail", "coverImage", "image") or \
+        (urls[0] if urls else None)
     if isinstance(main, dict):
         main = pick(main, "url", "src")
+    if isinstance(main, str) and main not in urls:
+        urls.append(main)
     count = to_int(pick(rec, "picturesCount", "imageCount", "imagesCount", "photoCount")) or (len(urls) or None)
     keys = []
     for u in urls:
@@ -212,6 +220,18 @@ def _coords(rec: dict) -> tuple[float | None, float | None, str | None]:
     return lat, lon, precision
 
 
+def _advertiser_key(rec: dict) -> str | None:
+    """Stable advertiser identity for dedupe. The publisher logo path is present on both portals' list
+    output (Navent reuses one path per advertiser); the publisher id is used when there is no logo."""
+    logo = pick(rec, "publisherLogo", "publisher.logo")
+    if isinstance(logo, str):
+        m = re.search(r"/empresas/((?:\d+/)+)", logo)
+        if m:
+            return "logo:" + m.group(1).replace("/", "")
+    pid = pick(rec, "publisherId", "publisher.publisherId", "publisher.id")
+    return f"id:{pid}" if pid else None
+
+
 def _location_text(rec: dict) -> tuple[str | None, str | None, str | None]:
     address = pick(rec, "address", "postingLocation.address.name", "location.address", "street",
                    "fullAddress", "addressLine")
@@ -225,6 +245,17 @@ def _location_text(rec: dict) -> tuple[str | None, str | None, str | None]:
                   "locationText", "fullLocation")
     if isinstance(parent, dict):
         parent = pick(parent, "name")
+    loc = rec.get("location")
+    if isinstance(loc, str) and loc.strip():
+        # Navent list output: "Miraflores, Lima" (district, city) or "San Antonio, Miraflores" (zone, district)
+        parts = [p.strip() for p in loc.split(",") if p.strip()]
+        if len(parts) >= 2 and fold(parts[-1]) in ("lima", "peru", "lima metropolitana"):
+            parts = parts[:-1]
+            parent = parent or "Lima"
+        if not district:
+            district = parts[-1]
+        if len(parts) >= 2:
+            parent = parts[0]      # neighbourhood / zone within the district
     return (str(address) if address else None), (str(district) if district else None), \
         (str(parent) if parent else None)
 
@@ -268,9 +299,10 @@ def map_navent_record(rec: dict, source: str, base_url: str, scraped_at: str | N
         source=source,
         source_listing_id=str(lid) if lid is not None else None,
         source_url=url if isinstance(url, str) else None,
+        search_segment=rec.get("_search_segment"),
         scraped_at=scraped_at,
         publication_date=_date(pick(rec, "publicationDate", "publishedAt", "publishDate", "published",
-                                    "createdAt", "created", "datePublished", "publishedText",
+                                    "publishedDate", "createdAt", "created", "datePublished", "publishedText",
                                     "publicationDateText", "antiquity"), scraped_dt),
         last_updated_date=_date(pick(rec, "modifiedDate", "updatedAt", "lastUpdate", "modified",
                                      "lastModified", "updated"), scraped_dt),
@@ -290,6 +322,8 @@ def map_navent_record(rec: dict, source: str, base_url: str, scraped_at: str | N
         rent_usd_basis="PUBLISHED" if "USD" in published else None,
         rent_pen=published.get("PEN"),
         rent_pen_basis="PUBLISHED" if "PEN" in published else None,
+        rent_usd_published=published.get("USD"),
+        rent_pen_published=published.get("PEN"),
         maintenance_fee=exp_amt,
         maintenance_currency=exp_cur,
         property_type=str(pick(rec, "propertyType", "realEstateType.name", "property_type", "type",
@@ -298,10 +332,10 @@ def map_navent_record(rec: dict, source: str, base_url: str, scraped_at: str | N
                            "transaction") or "") or None,
         bedrooms=bedrooms,
         bathrooms=baths,
-        total_area_m2=to_float(pick(rec, "totalArea", "total_area", "areaTotal", "totalSurface", "surfaceTotal",
-                                    "area", "surface", "m2Total")) or feats.get("total_area_m2"),
-        built_area_m2=to_float(pick(rec, "coveredArea", "builtArea", "covered_area", "roofedArea", "areaTechada",
-                                    "coveredSurface", "surfaceCovered")) or feats.get("built_area_m2"),
+        total_area_m2=to_float(pick(rec, "totalArea", "totalAreaM2", "total_area", "areaTotal", "totalSurface",
+                                    "surfaceTotal", "area", "surface", "m2Total")) or feats.get("total_area_m2"),
+        built_area_m2=to_float(pick(rec, "coveredArea", "builtArea", "builtAreaM2", "covered_area", "roofedArea",
+                                    "areaTechada", "coveredSurface", "surfaceCovered")) or feats.get("built_area_m2"),
         floor=to_int(pick(rec, "floor", "piso", "unitFloor")) if pick(rec, "floor", "piso", "unitFloor") is not None
         else to_int(feats.get("floor")),
         total_floors=to_int(pick(rec, "totalFloors", "floors", "buildingFloors")) or to_int(feats.get("total_floors")),
@@ -311,9 +345,10 @@ def map_navent_record(rec: dict, source: str, base_url: str, scraped_at: str | N
         agent_name=str(pick(rec, "contactName", "agent.name", "agentName", "contact.name") or "") or None,
         agency_name=str(pick(rec, "publisher.name", "publisherName", "agencyName", "agency.name",
                              "advertiser.name", "advertiserName", "realEstate.name", "inmobiliaria") or "") or None,
-        phone=str(pick(rec, "phone", "phones.0", "publisher.phone", "contact.phone", "phoneNumber",
+        advertiser_key=_advertiser_key(rec),
+        phone=str(pick(rec, "phone", "agentPhone", "phones.0", "publisher.phone", "contact.phone", "phoneNumber",
                        "telephone", "mobile", "cellPhone") or "") or None,
-        whatsapp=str(pick(rec, "whatsapp", "whatsApp", "whatsappNumber", "publisher.whatsapp",
+        whatsapp=str(pick(rec, "whatsapp", "whatsApp", "agentWhatsapp", "whatsappNumber", "publisher.whatsapp",
                           "contact.whatsapp", "publisher.whatsApp") or "") or None,
         main_image_url=main_img,
         image_count=img_count,
@@ -367,73 +402,101 @@ def _page_url(url: str, page: int) -> str:
 
 
 # --------------------------------------------------------------------------- collector
+def segment_urls(scfg: dict) -> list[tuple[int, str]]:
+    return [(int(seg["bedrooms"]), url) for seg in scfg["segments"] for url in seg["start_urls"]]
+
+
+def _segment_intent(cfg: dict, bedrooms: int, url: str) -> dict:
+    max_price = cfg["budget"]["query_max_rent"]
+    return {"start_urls": [url], "max_price": max_price, "currency": "USD", "min_bedrooms": bedrooms,
+            "max_bedrooms": bedrooms, "operation": "rent", "property_type": "apartment", "with_details": True,
+            # sent verbatim only if the actor's input schema cannot be read
+            "raw_input": {"startUrls": [{"url": url}], "withDetails": True, "priceCurrency": "USD",
+                          "maxPrice": max_price, "minBedrooms": bedrooms, "maxBedrooms": bedrooms}}
+
+
 def collect_navent(name: str, scfg: dict, cfg: dict, http: PoliteClient, budget: CostBudget,
                    mode: str, auth: ApifyAuth | None, max_items: int | None = None) -> SourceResult:
+    """``max_items`` is per bedroom segment. Each segment (and each of its start URLs) is its own Actor
+    run, so the 1-bedroom search can never use up the records meant for the 2-bedroom search."""
     base_url = scfg["base_url"]
     if max_items is None:
-        max_items = cfg["cost_control"]["validation_max_items"] if mode == "validate" else scfg["full_max_items"]
+        max_items = cfg["cost_control"]["validation_items_per_segment"] if mode == "validate" \
+            else scfg["full_max_items_per_segment"]
 
     if auth is not None and auth.available:
-        res = SourceResult(source=name, method=f"Apify actor {scfg['actor_id']} ({auth.method})")
+        res = SourceResult(source=name, method=f"Apify actor {scfg['actor_id']} ({auth.method}), "
+                                               f"one run per bedroom segment")
         try:
             client = ApifyClient(auth, http)
             info = client.actor_info(scfg["actor_id"])
             stats = info.get("stats") or {}
             res.audit.update({"actor_title": info.get("title"), "actor_modified": info.get("modifiedAt"),
                               "actor_last_run": stats.get("lastRunStartedAt"),
-                              "actor_total_runs": stats.get("totalRuns")})
+                              "actor_total_runs": stats.get("totalRuns"), "segments": []})
             try:
                 props = client.input_schema(scfg["actor_id"], info)
+                res.audit["input_schema"] = "retrieved" if props else "not published by the actor"
             except ApifyError as exc:
                 props = None
+                res.audit["input_schema"] = f"unavailable ({exc})"
                 res.notes.append(f"input schema unavailable ({exc})")
             res.audit["input_properties"] = sorted(props) if props else []
-            intent = {"start_urls": scfg["start_urls"], "max_price": cfg["budget"]["query_max_rent"],
-                      "currency": "USD", "min_bedrooms": cfg["bedrooms"]["min"], "max_bedrooms": cfg["bedrooms"]["max"],
-                      "operation": "rent", "property_type": "apartment", "with_details": True,
-                      "raw_input": scfg.get("input", {})}
-            if not props or not _prop_present(props, "start_urls"):
-                intent["location"] = cfg["location"]["district"]
-            run_input, notes = build_actor_input(props, intent, max_items)
-            res.notes.extend(notes)
-            res.audit["actor_input"] = run_input
-            est, desc = client.estimate_cost(info, max_items)
-            res.audit["pricing"] = desc
-            res.audit["estimated_cost_usd"] = est
-            if est is not None and est > budget.remaining and est > 0:
-                scaled = int(max_items * budget.remaining / est)
-                res.notes.append(f"estimated ${est:.2f} for {max_items} items exceeds remaining budget "
-                                 f"${budget.remaining:.2f}; reduced to {scaled} items")
-                max_items = scaled
-            if max_items <= 0 or budget.remaining <= 0.01:
-                res.errors.append("cost budget exhausted — source skipped (ask before spending more)")
-                return res.finish("SKIPPED")
-            usage_before = client.monthly_usage_usd()
-            run, items = client.run_actor(scfg["actor_id"], run_input, max_items, budget.remaining)
-            cost = run.get("usageTotalUsd")
-            if cost is None:
-                after = client.monthly_usage_usd()
-                cost = (after - usage_before) if (after is not None and usage_before is not None) else est
-            cost = float(cost or 0.0)
-            budget.charge(cost)
-            res.cost_usd = cost
-            res.audit.update({"run_id": run.get("id"), "run_status": run.get("status"), "items": len(items),
-                              "dataset_fields": dataset_fields(items)})
-            if len(items) == 10 and max_items > 10:
-                res.notes.append("exactly 10 items returned — the actor's free-tier evaluation cap is likely active")
-            res.raw_records = items
-            scraped = now_iso()
-            res.listings = [map_navent_record(it, name, base_url, scraped) for it in items]
-            if run.get("status") != "SUCCEEDED":
-                res.errors.append(f"actor run ended with status {run.get('status')}")
-            return res.finish("SUCCESS" if items and run.get("status") == "SUCCEEDED"
-                              else "PARTIAL" if items else "FAILED")
         except NetworkBlocked as exc:
             res.errors.append(f"api.apify.com unreachable from this environment: {exc}")
             return res.finish("FAILED")
         except ApifyError as exc:
             res.errors.append(str(exc))
             return res.finish("FAILED")
+
+        scraped = now_iso()
+        stop = False
+        for seg in scfg["segments"]:
+            beds = int(seg["bedrooms"])
+            urls = seg["start_urls"][:1] if mode == "validate" else seg["start_urls"]
+            seg_audit = {"bedrooms": beds, "runs": []}
+            got: list[dict] = []
+            for url in urls:
+                want = max_items - len(got)
+                if want <= 0 or stop:
+                    break
+                intent = _segment_intent(cfg, beds, url)
+                if not props or not _prop_present(props, "start_urls"):
+                    intent["location"] = cfg["location"]["district"]
+                run_input, notes = build_actor_input(props, intent, want)
+                res.notes.extend(n for n in notes if n not in res.notes)
+                label = f"{name} {beds}BR"
+                try:
+                    run, items, cost, basis = paid_run(client, budget, scfg["actor_id"], info, run_input, want,
+                                                       label, cfg["cost_control"]["unknown_pricing_run_usd"])
+                except BudgetStop as exc:
+                    res.errors.append(f"{exc} (ask before spending more)")
+                    stop = True
+                    break
+                except (ApifyError, NetworkBlocked) as exc:
+                    res.errors.append(f"{label}: {exc}")
+                    continue
+                res.cost_usd += cost
+                seg_audit["runs"].append({"run_id": run.get("id"), "status": run.get("status"), "requested": want,
+                                          "items": len(items), "cost_usd": round(cost, 4), "cost_basis": basis,
+                                          "input": run_input})
+                if want > 10 and len(items) == 10:
+                    res.notes.append(f"{label}: exactly 10 of {want} records returned — the free Apify plan "
+                                     "caps every run at 10 records")
+                if run.get("status") != "SUCCEEDED":
+                    res.errors.append(f"{label}: actor run ended with status {run.get('status')}")
+                for it in items:
+                    it["_search_segment"] = f"{beds}BR"
+                got.extend(items)
+            res.audit["segments"].append(seg_audit)
+            res.raw_records.extend(got)
+            if stop:
+                break
+        res.audit["dataset_fields"] = dataset_fields(res.raw_records)
+        res.listings = [map_navent_record(it, name, base_url, scraped) for it in res.raw_records]
+        if not res.raw_records:
+            return res.finish("FAILED")
+        return res.finish("PARTIAL" if res.errors else "SUCCESS")
 
     # ---- Apify not available: no paid call; one polite direct attempt, stop on any challenge
     res = SourceResult(source=name, method="direct HTML (Apify not available — local fallback)")
@@ -442,7 +505,7 @@ def collect_navent(name: str, scfg: dict, cfg: dict, http: PoliteClient, budget:
     scraped = now_iso()
     pages = 1 if mode == "validate" else int(scfg.get("direct_max_pages", 10))
     try:
-        for url in scfg["start_urls"]:
+        for _, url in segment_urls(scfg):
             for page in range(1, pages + 1):
                 resp = http.get_html(_page_url(url, page))
                 if resp.status_code != 200:

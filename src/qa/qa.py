@@ -186,23 +186,24 @@ class LiveRechecker:
 
     def _apify(self, src: str, batch: dict) -> dict:
         from ..normalize.normalize import normalize_listing
-        from ..sources.apify_client import ApifyClient, ApifyError, build_actor_input
+        from ..sources.apify_client import ApifyClient, ApifyError, BudgetStop, build_actor_input, paid_run
         from ..sources.navent import map_navent_record
         from ..deduplicate.dedupe import norm_url
         scfg = self.cfg["sources"][src]
         out = {}
         urls = [r["source_url"] for r in batch.values()]
-        cap = min(self.budget.remaining, 0.75)
-        if cap <= 0.01:
+        if self.budget.remaining <= 0.01:
             return {i: ("UNVERIFIED_BUDGET", "no budget left for an Apify re-check", {}) for i in batch}
         try:
             client = ApifyClient(self.auth, self.http)
             info = client.actor_info(scfg["actor_id"])
             props = client.input_schema(scfg["actor_id"], info)
             run_input, _ = build_actor_input(props, {"start_urls": urls, "with_details": True}, len(urls) + 2)
-            run, items = client.run_actor(scfg["actor_id"], run_input, len(urls) + 2, cap, timeout_s=600)
-            cost = float(run.get("usageTotalUsd") or 0.0)
-            self.budget.charge(cost)
+            run, items, cost, _ = paid_run(client, self.budget, scfg["actor_id"], info, run_input, len(urls) + 2,
+                                           f"QA re-check {src}", self.cfg["cost_control"]["unknown_pricing_run_usd"],
+                                           timeout_s=600)
+        except BudgetStop as exc:
+            return {i: ("UNVERIFIED_BUDGET", str(exc), {}) for i in batch}
         except (ApifyError, NetworkBlocked) as exc:
             return {i: ("UNVERIFIED_APIFY", f"Apify re-check failed: {exc}", {}) for i in batch}
         fresh = [normalize_listing(map_navent_record(it, src, scfg["base_url"], now_iso()), self.cfg, self.fx)

@@ -331,6 +331,9 @@ def red_flags(row, cfg, extra: list[str]) -> list[str]:
         f.add("SHORT_TERM_WORDING")
     if row.get("rent_usd_basis") == "CALCULATED":
         f.add("PRICE_CONVERTED_FROM_PEN")
+    diff = _num(row.get("rent_usd_published_diff_pct"))
+    if diff is not None and abs(diff) > cfg["fx"]["published_mismatch_flag_pct"]:
+        f.add("CURRENCY_CONVERSION_MISMATCH")
     return sorted(f)
 
 

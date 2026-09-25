@@ -36,18 +36,40 @@ class SourceResult:
 
 
 class CostBudget:
-    """Hard ceiling for paid calls across the whole run."""
+    """Project-wide hard ceiling for paid calls.
 
-    def __init__(self, max_usd: float):
+    ``prior_spent`` is the actual spend of earlier runs (read from Apify's run records), so the cap
+    applies to the whole project, not to one pipeline run. ``account_headroom`` is what the Apify
+    account itself still allows this billing cycle; the stricter of the two limits applies."""
+
+    def __init__(self, max_usd: float, prior_spent: float = 0.0, account_headroom: float | None = None):
         self.max_usd = max_usd
-        self.spent = 0.0
+        self.prior_spent = prior_spent
+        self.spent = prior_spent            # cumulative project spend
+        self.account_headroom = account_headroom
+        self.ledger: list[dict] = []        # one entry per paid run of this pipeline run
+
+    @property
+    def run_spent(self) -> float:
+        return self.spent - self.prior_spent
 
     @property
     def remaining(self) -> float:
-        return max(0.0, self.max_usd - self.spent)
+        left = self.max_usd - self.spent
+        if self.account_headroom is not None:
+            left = min(left, self.account_headroom - self.run_spent)
+        return max(0.0, left)
 
-    def charge(self, usd: float | None) -> None:
-        self.spent += float(usd or 0.0)
+    def charge(self, usd: float | None, label: str = "", basis: str = "") -> None:
+        if usd is None:
+            raise ValueError("cost must be known or conservatively estimated — never None")
+        self.spent += float(usd)
+        self.ledger.append({"label": label, "usd": float(usd), "basis": basis, "cumulative": self.spent,
+                            "remaining": self.remaining})
+
+    def ledger_lines(self) -> list[str]:
+        return [f"{e['label']}: USD {e['usd']:.3f} · cumulative USD {e['cumulative']:.3f} of {self.max_usd:.2f} · "
+                f"remaining USD {e['remaining']:.3f} — {e['basis']}" for e in self.ledger]
 
 
 # --------------------------------------------------------------------------- lookup helpers
