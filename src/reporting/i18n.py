@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from contextlib import contextmanager
 
-from .i18n_hi import HI, PATTERNS
+from .i18n_hi import CODE_HI, HI, PATTERNS
 
 _LANG = ["en"]
 MISSING: set[str] = set()
@@ -44,8 +44,33 @@ def language(code: str):
 
 
 def L(en: str, hi: str) -> str:
-    """Inline bilingual text for prose that embeds run values (both versions written side by side)."""
-    return hi if _LANG[0] == "hi" else en
+    """Inline bilingual text for prose that embeds run values (both versions written side by side).
+    In Hindi, bare classification codes in the prose become "हिंदी (CODE)"."""
+    return decorate_codes(hi) if _LANG[0] == "hi" else en
+
+
+_CODE_RX = re.compile(r"(?<![\w(/])(" + "|".join(sorted((re.escape(k) for k in CODE_HI if "_" in k or k in (
+    "STRETCH", "BORDERLINE", "UNKNOWN", "HIGH", "MEDIUM", "APPROVED", "REJECTED", "SKIPPED")), key=len, reverse=True))
+    + r")(?![\w)])")
+
+
+def code_hi(code) -> str:
+    """One classification code → "हिंदी (CODE)" in Hindi; unchanged in English or when not a known code."""
+    if _LANG[0] != "hi" or not isinstance(code, str) or code.strip() not in CODE_HI:
+        return code
+    return f"{CODE_HI[code.strip()]} ({code.strip()})"
+
+
+def codes_hi(value) -> str:
+    """A cell of codes ("A; B" or "A / B") → each known code labelled in Hindi; other tokens untouched."""
+    if not isinstance(value, str):
+        return value
+    return "; ".join(" / ".join(code_hi(x) for x in part.split(" / ")) for part in value.split("; "))
+
+
+def decorate_codes(text: str) -> str:
+    """Label bare codes inside Hindi prose; codes already in parentheses or glued to other words are left alone."""
+    return _CODE_RX.sub(lambda m: f"{CODE_HI[m.group(1)]} ({m.group(1)})", text)
 
 
 def is_passthrough(text: str) -> bool:

@@ -462,9 +462,9 @@ def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]
            "stays, no guarantor, English listing, furnished + utilities), POTENTIAL_FRICTION (asks for a Peruvian "
            "guarantor, carné de extranjería or DNI), UNKNOWN (silent — the normal case, never penalised). Where silent, "
            "confirm passport acceptance, carné de extranjería, proof of income, guarantor (aval), deposit and minimum term.",
-           "केवल विज्ञापन के विवरण से: HIGH (विदेशियों/पासपोर्ट/कंपनी-अनुबंध का स्पष्ट स्वागत), MEDIUM (अस्थायी अवधि, गारंटर "
-           "नहीं, अंग्रेज़ी विज्ञापन, सुसज्जित + सेवाएँ शामिल), POTENTIAL_FRICTION (पेरू के गारंटर, carné de extranjería या DNI "
-           "की माँग), UNKNOWN (कोई उल्लेख नहीं — सामान्य स्थिति, कोई नकारात्मक अंक नहीं)। उल्लेख न होने पर पासपोर्ट की "
+           "केवल विज्ञापन के विवरण से: HIGH = विदेशियों/पासपोर्ट/कंपनी-अनुबंध का स्पष्ट स्वागत; MEDIUM = अस्थायी अवधि, गारंटर "
+           "नहीं, अंग्रेज़ी विज्ञापन, सुसज्जित + सेवाएँ शामिल; POTENTIAL_FRICTION = पेरू के गारंटर, carné de extranjería या DNI "
+           "की माँग; UNKNOWN = कोई उल्लेख नहीं — सामान्य स्थिति, कोई नकारात्मक अंक नहीं। उल्लेख न होने पर पासपोर्ट की "
            "स्वीकार्यता, carné de extranjería, आय का प्रमाण, गारंटर (aval), जमा राशि और न्यूनतम अवधि की पुष्टि करें।")),
         (L("Availability", "उपलब्धता"),
          L("ACTIVE_CONFIRMED = listing re-opened successfully during the final Top-10 re-check · LIKELY_ACTIVE = returned "
@@ -487,11 +487,10 @@ def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]
            "POTENTIAL_FRICTION, UNKNOWN (foreign tenant) · PUBLISHED / CALCULATED (value published by the listing or "
            "converted) · red-flag codes such as UNKNOWN_MAINTENANCE (maintenance not published), NO_COORDINATES (no map "
            "position), ON_MAJOR_ARTERIAL (address on a major arterial).",
-           "वर्गीकरण कोड अंग्रेज़ी और हिंदी फ़ाइलों में एक जैसे रखे गए हैं: STRICT_ALL_IN, BASE_RENT_COMPLIANT, STRETCH, "
-           "BORDERLINE (बजट) · ACTIVE_CONFIRMED, LIKELY_ACTIVE, UNKNOWN (उपलब्धता) · HIGH, MEDIUM, POTENTIAL_FRICTION, UNKNOWN "
-           "(विदेशी किरायेदार) · PUBLISHED / CALCULATED (विज्ञापन में प्रकाशित या रूपांतरित मान) · चेतावनी कोड, जैसे "
-           "UNKNOWN_MAINTENANCE (रखरखाव शुल्क प्रकाशित नहीं), NO_COORDINATES (नक्शे पर स्थान नहीं), ON_MAJOR_ARTERIAL (पता "
-           "मुख्य सड़क पर)।")),
+           "हर श्रेणी का हिंदी नाम दिया गया है और अंग्रेज़ी फ़ाइल से मिलान के लिए मूल कोड कोष्ठक में रखा गया है — बजट: "
+           "STRICT_ALL_IN, BASE_RENT_COMPLIANT, STRETCH, BORDERLINE; उपलब्धता: ACTIVE_CONFIRMED, LIKELY_ACTIVE, UNKNOWN; "
+           "विदेशी किरायेदार: HIGH, MEDIUM, POTENTIAL_FRICTION; मान का स्रोत: PUBLISHED, CALCULATED; चेतावनी संकेत, जैसे "
+           "UNKNOWN_MAINTENANCE, NO_COORDINATES, ON_MAJOR_ARTERIAL।")),
         (L("Unknown values", "अज्ञात मान"),
          L("Shown as UNKNOWN (Hindi: जानकारी उपलब्ध नहीं). Nothing is imputed; no phone number, WhatsApp or date is ever "
            "invented. The listing link is the contact path when no phone is published.",

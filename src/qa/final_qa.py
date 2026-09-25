@@ -311,7 +311,8 @@ def devanagari_checks(pdf: Path, rep: Report) -> None:
 def _html_facts(html_path: Path) -> tuple[list[dict], list[dict], list[list[str]]]:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
-    top5 = [{k: v for k, v in tr.attrs.items() if k.startswith("data-")} for tr in soup.select("table.top5 tr[data-rank]")]
+    top5 = [{k: v for k, v in tr.attrs.items() if k.startswith("data-")}
+            for tr in soup.select("table.top5 tr[data-rank], tr.br2")]
     cards = [{k: v for k, v in d.attrs.items() if k.startswith("data-")} for d in soup.select("div.card[data-rank]")]
     nums = [sorted(re.findall(r"\d[\d,]*(?:\.\d+)?", d.get_text(" "))) for d in soup.select("div.card[data-rank]")]
     return top5, cards, nums
@@ -321,7 +322,7 @@ def parity_checks(paths: dict, rep: Report) -> None:
     """English is the source of truth: the Hindi files must carry exactly the same facts."""
     import pymupdf
     from openpyxl import load_workbook
-    from ..reporting.i18n import language, t
+    from ..reporting.i18n import codes_hi, language, t
     (en_x, en_p, en_t), (hi_x, hi_p, hi_t) = paths["en"], paths["hi"]
     # ---- report: every Top-5 row and Top-10 card, attribute by attribute, plus the numbers printed in each card
     e5, ec, en_nums = _html_facts(en_p.with_suffix(".html"))
@@ -357,7 +358,8 @@ def parity_checks(paths: dict, rep: Report) -> None:
                         bad.append(f"{sheet}!{ca.coordinate} link")
                     elif not isinstance(ca.value, str) and ca.value != cb.value:
                         bad.append(f"{sheet}!{ca.coordinate} value")
-                    elif isinstance(ca.value, str) and cb.value not in (ca.value, t(ca.value, record=False)) \
+                    elif isinstance(ca.value, str) and cb.value not in (ca.value, t(ca.value, record=False),
+                                                                          codes_hi(ca.value)) \
                             and not str(cb.value).startswith(ca.value.split(" · ")[0]):
                         bad.append(f"{sheet}!{ca.coordinate} text")
     rep.add("PASS" if not bad else "FAIL", "16. EN = HI workbook: same rows, order, numbers, links and codes; text only "

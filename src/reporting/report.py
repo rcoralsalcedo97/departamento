@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import common as C
-from .i18n import L, language, t
+from .i18n import L, code_hi, language, t
 
 E = html.escape
 SERIES = {1: "#2a78d6", 2: "#eb6834"}          # validated categorical slots 1–2 (dataviz reference palette)
@@ -76,6 +76,10 @@ figure { margin: 2mm 0 4mm; page-break-inside: avoid; } figcaption { color: #525
 .STRETCH { background: #fbd5d2; color: #9b1c13; } .BORDERLINE { background: #ecebe6; color: #4a4944; }
 .lead { font-size: 9.6pt; margin: 1mm 0 2mm; }
 .legend { font-size: 8.2pt; color: #3a3935; }
+.callout { border: 1px solid #d9dce1; border-left: 3px solid #eb6834; border-radius: 4px; padding: 2mm 3mm 0.5mm; margin: 0 0 3mm; }
+.callout h3 { color: #1f3a4d; font-size: 10pt; margin: 0 0 1mm; }
+table.br2t { font-size: 8pt; margin: 0.5mm 0 1mm; }
+body.hi ul.meth { font-size: 9pt; line-height: 1.45; } body.hi ul.meth li { margin-bottom: 0.6mm; }
 """
 
 NOISE_CLASS = {"LIKELY QUIET": "QUIET", "POSSIBLY QUIET": "PQUIET", "NOISE UNCERTAIN": "UNCERTAIN",
@@ -189,7 +193,7 @@ def _foreign_line(r: dict) -> str:
                  "न्यूनतम अवधि की पुष्टि करें")
     else:
         body = t(ev) if ev else ""
-    return f'<p class="kv"><b>{E(L("Foreign tenant.", "विदेशी किरायेदार।"))}</b> {E(level)} — {E(body)}</p>'
+    return f'<p class="kv"><b>{E(L("Foreign tenant.", "विदेशी किरायेदार।"))}</b> {E(code_hi(level))} — {E(body)}</p>'
 
 
 def _data_attrs(rank: int, r: dict) -> str:
@@ -398,6 +402,36 @@ def _twin_note(twins: list[int] | None) -> str:
     return (f'<p class="kv warn">⚠ {E(L(f"Possible duplicate of {ks}: very similar details but no shared photo or ID — it may be the same flat listed by two different agents. Ask each for the exact address before visiting both.", f"संभवतः {ks} जैसा ही अपार्टमेंट: विवरण लगभग एक जैसे, पर कोई साझा फ़ोटो या ID नहीं — यह दो अलग एजेंटों द्वारा विज्ञापित एक ही अपार्टमेंट हो सकता है। दोनों को देखने से पहले हर एजेंट से सटीक पता पूछें।"))}</p>')
 
 
+def _best_2br(primary: pd.DataFrame) -> str:
+    """The three strongest collected 2-bedroom options, in their existing rank order — informational only."""
+    two = primary[primary["bedrooms"] == 2].sort_values("rank_in_category").head(3)
+    if two.empty:
+        return ""
+    rows = ""
+    for r in C.records(two):
+        total = _total(r)
+        url = E(str(r.get("source_url")))
+        key = f"{r.get('source')}:{r.get('source_listing_id')}"
+        rows += (f"<tr class='br2' data-id=\"{E(key)}\" "
+                 f"data-url=\"{url}\" data-rank=\"{r.get('rank_in_category')}\">"
+                 f"<td><a href='{url}'>{_nt(C.property_label(r))}</a></td>"
+                 f"<td class='num nw'>{_fmt_usd(r.get('rent_usd'))}</td>"
+                 f"<td class='num nw'>{('≈ ' + _fmt_usd(total)) if total is not None else E(t('Unknown'))}</td>"
+                 f"<td class='num nw'>{E(_area_text(r))}</td>"
+                 f"<td>{E(t(C.furnished_text(r).replace('UNKNOWN', 'Unknown')))}</td>"
+                 f"<td>{_noise_pill(r)} <span class='muted'>{E(L('confidence', 'विश्वसनीयता'))} "
+                 f"{E(t(str(r.get('noise_confidence') or 'low').lower()))}</span></td>"
+                 f"<td><a class='view' href='{url}'>{E(L('View', 'देखें'))} ↗</a></td></tr>")
+    head = "".join(f"<th class='{c}'>{E(h)}</th>" for h, c in (
+        (L("Property", "संपत्ति"), ""), (L("Rent", "मासिक किराया"), "num nw"), (L("Estimated total", "अनुमानित कुल मासिक खर्च"), "num"),
+        (L("Area", "क्षेत्रफल"), "num"), (L("Furnished", "सुसज्जित"), ""), (L("Noise category · confidence", "शोर श्रेणी · विश्वसनीयता"), ""),
+        (L("Listing", "विज्ञापन"), "")))
+    note = L("Informational only — these are the highest-ranked 2-bedroom listings collected; the Top 10 ranking above is unchanged.",
+             "केवल जानकारी के लिए — ये एकत्रित 2 बेडरूम विज्ञापनों में सबसे ऊँचे क्रम वाले हैं; ऊपर का शीर्ष-10 क्रम नहीं बदला गया है।")
+    return (f"<section class='keep callout'><h3>{E(L('BEST 2-BEDROOM OPTIONS', '2 बेडरूम के अच्छे विकल्प'))}</h3>"
+            f"<table class='br2t'><tr>{head}</tr>{rows}</table><p class='sub'>{E(note)}</p></section>")
+
+
 def _mini_table(rows: pd.DataFrame, cols: list[tuple[str, callable, bool]]) -> str:
     if rows.empty:
         return f"<p class='muted'>{E(L('No qualifying listings.', 'कोई उपयुक्त अपार्टमेंट नहीं।'))}</p>"
@@ -431,10 +465,10 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
     bc = primary["budget_class"].value_counts().to_dict() if "budget_class" in primary else {}
     tiles = "".join(f"<div class='tile'><div class='label'>{E(k)}</div><div class='value'>{v}</div></div>" for k, v in (
         (L("Unique listings screened", "जाँचे गए अद्वितीय अपार्टमेंट"), f"{meta['n_unique']:,}"),
-        ("STRICT_ALL_IN", f"{bc.get('STRICT_ALL_IN', 0):,}"),
-        ("BASE_RENT_COMPLIANT", f"{bc.get('BASE_RENT_COMPLIANT', 0):,}"),
-        ("STRETCH", f"{meta['n_stretch']:,}"),
-        ("BORDERLINE", f"{meta.get('n_borderline', 0):,}")))
+        (code_hi("STRICT_ALL_IN"), f"{bc.get('STRICT_ALL_IN', 0):,}"),
+        (code_hi("BASE_RENT_COMPLIANT"), f"{bc.get('BASE_RENT_COMPLIANT', 0):,}"),
+        (code_hi("STRETCH"), f"{meta['n_stretch']:,}"),
+        (code_hi("BORDERLINE"), f"{meta.get('n_borderline', 0):,}")))
 
     link = lambda r: (f"<a href='{E(r['source_url'])}'>{_nt(C.property_label(r))}</a>" if r.get("source_url")
                       else _nt(C.property_label(r)))
@@ -451,7 +485,7 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
         (L("Est. total", "अनुमानित कुल खर्च"), lambda r: E(t(str(r["estimated_total_text"]))), False)])
     val_table = _mini_table(value, [
         (L("Property", "संपत्ति"), link, False), ("USD/m²", lambda r: f"{r['rent_usd_per_m2']:.1f}", True),
-        (L("Value band", "मूल्य श्रेणी"), lambda r: E(str(r["value_band"])), False),
+        (L("Value band", "मूल्य श्रेणी"), lambda r: E(code_hi(str(r["value_band"]))), False),
         (L("Noise category", "शोर श्रेणी"), lambda r: _noise_pill(r), False)])
     stretch_table = _mini_table(stretch.head(5), [
         (L("Property", "संपत्ति"), link, False), (L("Rent", "मासिक किराया"), lambda r: _fmt_usd(r["rent_usd"]), True),
@@ -468,7 +502,7 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
 
     # foreign-tenant practicality
     ft = in_scope["foreign_tenant_friendliness"].fillna("UNKNOWN").value_counts().to_dict()
-    ft_rows = "".join(f"<tr><td>{E(k)}</td><td class='num'>{ft.get(k, 0)}</td><td>{E(d)}</td></tr>" for k, d in (
+    ft_rows = "".join(f"<tr><td>{E(code_hi(k))}</td><td class='num'>{ft.get(k, 0)}</td><td>{E(d)}</td></tr>" for k, d in (
         ("HIGH", L("the listing explicitly welcomes foreigners, passports or corporate leases",
                    "विज्ञापन स्पष्ट रूप से विदेशियों, पासपोर्ट या कंपनी-अनुबंध का स्वागत करता है")),
         ("MEDIUM", L("practical signals only (temporary stays, no guarantor, English listing, furnished + utilities)",
@@ -506,7 +540,7 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
                      f"{mism} विज्ञापनों में पोर्टल का USD आँकड़ा S/ ÷ दर से {meta.get('fx_flag_pct', 5)}% से अधिक अलग है (CURRENCY_CONVERSION_MISMATCH): मुद्रा और राशि लिखित में तय करें।"))
 
     src_rows = "".join(
-        f"<tr><td>{E(t(a['Source'], record=False))}</td><td>{E(str(a['Status']))}</td>"
+        f"<tr><td>{E(t(a['Source'], record=False))}</td><td>{E(code_hi(str(a['Status'])))}</td>"
         f"<td class='num'>{E(str(a['Records collected']))}</td></tr>"
         for a in audit_rows if not str(a["Status"]).startswith("PENDING (not automated"))
 
@@ -574,6 +608,7 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
                       "पाँच सबसे उपयुक्त विकल्प: 1–2 बेडरूम, Miraflores के भीतर, मासिक किराया USD 1,000 या उससे कम — शांत वातावरण, जगह और मूल्य के आधार पर क्रमबद्ध। हरा बजट-चिह्न का अर्थ है कि कुल मासिक खर्च (किराया + रखरखाव शुल्क) USD 1,000 के भीतर है।"))}</p>
 {_top5(top)}
 <div class="tiles">{tiles}</div>
+{_best_2br(primary)}
 <p class="legend">{L("<b>Noise categories:</b> LIKELY QUIET · POSSIBLY QUIET · NOISE UNCERTAIN · LIKELY NOISY — always shown with the confidence of the evidence. Most listings give no exact location, so most noise estimates are based on listing text and have LOW confidence: check noise in person.",
                      "<b>शोर की श्रेणियाँ:</b> संभवतः शांत · शायद शांत · शोर अनिश्चित · संभवतः शोरगुल वाला — हमेशा प्रमाण की विश्वसनीयता के साथ। अधिकांश विज्ञापनों में सटीक स्थान नहीं है, इसलिए अधिकांश अनुमान केवल विज्ञापन के विवरण पर आधारित हैं और उनकी विश्वसनीयता कम है: शोर की जाँच स्वयं करें।")}</p>
 <p class="legend">{L("<b>Availability:</b> ACTIVE_CONFIRMED = listing re-opened successfully just before this report · LIKELY_ACTIVE = seen in the live search, automated re-check not possible · UNKNOWN = could not be confirmed. Availability is never guaranteed.",
@@ -591,7 +626,7 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
 
 <section class="keep"><h2>{E(L("4 · Budget, stretch and borderline", "4 · बजट, स्ट्रेच और सीमा-रेखा वाले मामले"))}</h2>
 <p>{L("Budget-compliant means rent ≤ USD 1,000 (STRICT_ALL_IN when rent + maintenance is also ≤ USD 1,000; BASE_RENT_COMPLIANT when the total is higher or maintenance is not published). STRETCH listings (USD 1,001–1,100) are shown separately and only make sense if the rent is negotiable.",
-      "बजट के भीतर का अर्थ है किराया ≤ USD 1,000 (STRICT_ALL_IN जब किराया + रखरखाव शुल्क भी ≤ USD 1,000 हो; BASE_RENT_COMPLIANT जब कुल खर्च अधिक हो या रखरखाव शुल्क प्रकाशित न हो)। STRETCH अपार्टमेंट (USD 1,001–1,100) अलग दिखाए गए हैं और केवल तभी उपयुक्त हैं जब किराये पर मोलभाव हो सके।")}</p>
+      "बजट के भीतर का अर्थ है किराया ≤ USD 1,000। STRICT_ALL_IN: किराया + रखरखाव शुल्क भी ≤ USD 1,000; BASE_RENT_COMPLIANT: कुल खर्च अधिक है या रखरखाव शुल्क प्रकाशित नहीं है। STRETCH अपार्टमेंट (USD 1,001–1,100) अलग दिखाए गए हैं और केवल तभी उपयुक्त हैं जब किराये पर मोलभाव हो सके।")}</p>
 {stretch_table}
 <p>{L("<b>BORDERLINE</b> listings are at most 1% (USD 11) above the USD 1,100 stretch ceiling only because a soles price was converted at the reference rate (for example, a published USD 1,100 that normalises to USD 1,104.87). They are listed for transparency and are <b>not</b> budget-compliant and not normal stretch.",
       "<b>BORDERLINE</b> अपार्टमेंट USD 1,100 की स्ट्रेच सीमा से अधिकतम 1% (USD 11) ऊपर हैं, और वह भी केवल इसलिए कि सोल में दिया किराया संदर्भ दर से बदला गया (उदाहरण: प्रकाशित USD 1,100 जो सामान्यीकरण के बाद USD 1,104.87 बनता है)। ये पारदर्शिता के लिए दिखाए गए हैं और बजट के भीतर <b>नहीं</b> हैं, न ही सामान्य स्ट्रेच।")}</p>
@@ -616,7 +651,7 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
 <table><tr><th>{E(L("Source", "स्रोत"))}</th><th style="width:30%">{E(L("Status", "स्थिति"))}</th><th class="num">{E(L("Records", "रिकॉर्ड"))}</th></tr>{src_rows}</table></section>
 <figure>{scatter_svg(in_scope, top, meta['budget'])}
 <figcaption>{E(L("Each dot is one unique listing (cross-posts merged). Relative to this sample only — not an official valuation.", "हर बिंदु एक अद्वितीय अपार्टमेंट है (दोहराव जोड़े गए)। केवल इसी नमूने की तुलना — आधिकारिक मूल्यांकन नहीं।"))}</figcaption></figure>
-<ul>{''.join(f'<li>{m}</li>' for m in methodology)}</ul>
+<ul class="meth">{''.join(f'<li>{m}</li>' for m in methodology)}</ul>
 <p class="sub">{E(L(f"Full field-level data, duplicate groups, red flags and the source audit: {workbook}.", f"पूरे आँकड़े, डुप्लिकेट समूह, चेतावनी संकेत और स्रोत ऑडिट: {workbook}।"))}</p>
 </body></html>"""
 

@@ -335,3 +335,42 @@ PATTERNS = [
     _p(r"Generated (?P<ts>\S+) · FX 1 USD = S/ (?P<r>[\d.]+) \((?P<s>.+)\)",
        lambda m, t: f"तैयार: {m['ts']} · विनिमय दर 1 USD = S/ {m['r']} ({FX_SRC.get(m['s'], m['s'])})"),
 ]
+
+# Classification codes → natural Hindi label; shown as "हिंदी (CODE)" so the code stays traceable to the English file.
+CODE_HI = {
+    # budget / category
+    "STRICT_ALL_IN": "कुल मासिक खर्च बजट के भीतर", "BASE_RENT_COMPLIANT": "मूल किराया बजट के भीतर",
+    "STRETCH": "अतिरिक्त बजट / मोलभाव योग्य", "BORDERLINE": "सीमा-रेखा विकल्प", "OVER_BUDGET": "बजट से अधिक",
+    "PRIMARY": "बजट के भीतर", "NEAR_MISS": "लगभग उपयुक्त", "EXCLUDED": "शामिल नहीं",
+    # availability / QA
+    "ACTIVE_CONFIRMED": "उपलब्धता की पुष्टि हुई", "LIKELY_ACTIVE": "संभवतः उपलब्ध", "INACTIVE": "उपलब्ध नहीं",
+    "UNKNOWN": "जानकारी उपलब्ध नहीं", "UNVERIFIED_NOT_RETURNED": "पुनः-जाँच में पुष्टि नहीं हो सकी",
+    "PROGRAMMATIC_WARN": "स्वचालित जाँच — ध्यान दें", "PROGRAMMATIC_PASS": "स्वचालित जाँच — ठीक",
+    "VERIFIED_ACTIVE": "उपलब्धता की पुष्टि हुई", "NOT_CHECKED": "जाँच नहीं हुई",
+    # levels / foreign tenant
+    "HIGH": "उच्च", "MEDIUM": "मध्यम", "LOW": "कम", "POTENTIAL_FRICTION": "संभावित अतिरिक्त शर्तें",
+    # value / space bands, value provenance
+    "EXCELLENT_VALUE": "उत्कृष्ट मूल्य", "GOOD_VALUE": "अच्छा मूल्य", "FAIR_VALUE": "उचित मूल्य",
+    "EXPENSIVE_RELATIVE_TO_SAMPLE": "नमूने की तुलना में महँगा", "INSUFFICIENT_SAMPLE": "तुलना के लिए नमूना कम",
+    "INSUFFICIENT_DATA": "पर्याप्त जानकारी नहीं", "VERY_SPACIOUS": "बहुत विशाल", "GOOD": "अच्छा",
+    "ACCEPTABLE": "पर्याप्त", "SMALL": "छोटा", "PUBLISHED": "प्रकाशित", "CALCULATED": "गणना से",
+    "GEOCODED_TEXT": "विज्ञापन के पते से", "GEOCODED_ADDRESS": "विज्ञापन के पते से", "LISTING": "पोर्टल से",
+    "none": "जानकारी उपलब्ध नहीं", "STREET_LEVEL": "सड़क-स्तर", "STREET_NUMBER": "भवन-स्तर", "EXACT": "सटीक", "APPROXIMATE": "अनुमानित",
+    # source audit status
+    "APPROVED": "स्वीकृत", "REJECTED": "अस्वीकृत", "SKIPPED": "उपयोग नहीं हुआ", "PARTIAL": "आंशिक",
+    # red flags
+    "UNKNOWN_MAINTENANCE": "रखरखाव शुल्क अज्ञात", "NO_COORDINATES": "नक्शे पर स्थान नहीं",
+    "NO_PUBLICATION_DATE": "प्रकाशन तिथि नहीं", "INCOMPLETE_CONTACT": "सीधा संपर्क नहीं",
+    "INCOMPLETE_ADDRESS": "पूरा पता नहीं", "PRICE_CONVERTED_FROM_PEN": "किराया PEN से बदला गया",
+    "CURRENCY_CONVERSION_MISMATCH": "मुद्रा-रूपांतरण में अंतर", "ON_MAJOR_ARTERIAL": "मुख्य सड़क पर",
+    "MAJOR_ARTERIAL_MENTIONED": "पास में मुख्य सड़क का उल्लेख", "APPROXIMATE_LOCATION": "अनुमानित स्थान",
+    "POSSIBLE_DUPLICATE": "संभावित डुप्लिकेट", "AREA_UNKNOWN": "क्षेत्रफल अज्ञात",
+    "PRICE_OVER_BUDGET": "किराया बजट से अधिक", "TOTAL_COST_OVER_BUDGET": "कुल खर्च बजट से अधिक",
+    "NO_FURNITURE": "असुसज्जित", "VERY_SMALL_AREA": "बहुत छोटा क्षेत्रफल", "HIGH_NOISE_RISK": "शोर का अधिक जोखिम",
+    "DIRECT_MAJOR_AVENUE": "मुख्य एवेन्यू के बिल्कुल पास", "NIGHTLIFE_PROXIMITY": "पास में नाइटलाइफ़",
+    "SHORT_TERM_WORDING": "कम अवधि का उल्लेख", "STUDIO_WORDING": "स्टूडियो जैसा विवरण",
+    "DISTRICT_MISMATCH": "ज़िले में विसंगति", "BEDROOM_TITLE_MISMATCH": "बेडरूम संख्या में विसंगति",
+    "AREA_INCONSISTENT": "क्षेत्रफल में विसंगति", "DUPLICATE_DATA_CONFLICT": "डुप्लिकेट आँकड़ों में अंतर",
+    "BORDERLINE_OVER_STRETCH": "स्ट्रेच सीमा से थोड़ा ऊपर", "LONG_MINIMUM_CONTRACT": "लंबी न्यूनतम अवधि",
+    "VERY_HIGH_DEPOSIT": "बहुत अधिक जमा राशि",
+}

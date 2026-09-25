@@ -14,7 +14,7 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment
 
 from .contact_templates import TEMPLATE_HI
-from .i18n import language, t
+from .i18n import code_hi, codes_hi, language, t
 
 SHEETS = {"CLIENT_TOP_PICKS": "शीर्ष विकल्प", "EXECUTIVE_SHORTLIST": "कार्यकारी शॉर्टलिस्ट",
           "ALL_MATCHES": "सभी उपयुक्त विकल्प", "STRETCH_NEGOTIABLE": "स्ट्रेच (मोलभाव योग्य)",
@@ -43,7 +43,7 @@ def _translate_formula(f: str) -> str:
         hi = t(m.group(3))
         return f'LEFT({m.group(1)},{len(hi)})="{hi}"'
     f = re.sub(r'LEFT\((\$?[A-Z]+\$?\d+),(\d+)\)="([^"]+)"', left, f)
-    return re.sub(r'"([^"]+)"', lambda m: f'"{t(m.group(1), record=False)}"', f)
+    return re.sub(r'"([^"]+)"', lambda m: f'"{code_hi(m.group(1)) if code_hi(m.group(1)) != m.group(1) else t(m.group(1), record=False)}"', f)
 
 
 def _wrap_if_long(ws, cell, text: str) -> None:
@@ -72,7 +72,12 @@ def translate_workbook(en_path: Path, hi_path: Path, methodology_hi: list[tuple[
                         continue                  # Spanish message kept; English meaning replaced below
                     col = headers.get(c.column)
                     if hdr and c.row > hdr:
-                        if name == "SOURCE_AUDIT" or col in KEEP_COLS or col in CODE_COLS:
+                        if col in CODE_COLS:
+                            c.value = codes_hi(v)     # "हिंदी (CODE)": natural label, code kept for traceability
+                            if c.value != v:
+                                _wrap_if_long(ws, c, c.value)
+                            continue
+                        if name == "SOURCE_AUDIT" or col in KEEP_COLS:
                             continue
                         if col in ("Who to contact", "WhatsApp / Contact"):
                             c.value = " · ".join(t(p, record=False) for p in v.split(" · "))
