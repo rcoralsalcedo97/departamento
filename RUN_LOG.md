@@ -130,3 +130,32 @@ Finished: 2026-09-24T18:28:12-05:00
   automated Gate-10 QA (renders, clipping/overlap, links, demo/secret scans, hard rules).
 - Offline verification on synthetic data (scratch folder, `docs/preview/` left untouched): Gate-10 QA all PASS after
   fixing clipped cells in EXECUTIVE_SHORTLIST found by the new clipping check; 36 tests pass.
+
+---
+
+## Run 2026-09-24T19:23:43-05:00 — mode `preflight`
+
+Finished: 2026-09-24T19:23:51-05:00
+
+
+### Gate 0 — network preflight (one small request per host)
+
+- PASS  api.apify.com — HTTP 404
+- PASS  urbania.pe — HTTP 403
+- PASS  www.urbania.pe — HTTP 301
+- PASS  adondevivir.com — HTTP 301
+- PASS  www.adondevivir.com — HTTP 403
+- PASS  inmuebles.mercadolibre.com.pe — HTTP 403
+- PASS  departamento.mercadolibre.com.pe — HTTP 403
+- PASS  overpass-api.de — HTTP 406
+- PASS  nominatim.openstreetmap.org — HTTP 200
+- PASS  estadisticas.bcrp.gob.pe — HTTP 200
+- PASS  www.sunat.gob.pe — HTTP 200
+
+
+### Apify authentication
+
+- Apify authentication: AVAILABLE
+- Method: CLOUD_CREDENTIAL
+- Detail: Authorization injected by the execution environment
+
