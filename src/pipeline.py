@@ -627,6 +627,31 @@ def init_budget(cfg: dict, http: PoliteClient, auth: ApifyAuth, log: RunLog) -> 
     return budget
 
 
+def reconcile_spend(budget: CostBudget, http: PoliteClient, auth: ApifyAuth) -> list[str]:
+    """Re-read every paid run of this pipeline run from Apify and raise any ledger entry whose record has
+    since settled higher (Apify books event charges asynchronously). Figures are never lowered."""
+    entries = [e for e in budget.ledger if e.get("run_id")]
+    if not entries:
+        return []
+    from .sources.apify_client import charged_from_record
+    lines = []
+    try:
+        client = ApifyClient(auth, http)
+        for e in entries:
+            rec = client.run_record(e["run_id"])
+            computed, detail = charged_from_record(rec)
+            figures = [x for x in (computed, rec.get("usageTotalUsd")) if x is not None]
+            settled = max(float(x) for x in figures) if figures else e["usd"]
+            delta = budget.adjust(e, settled, f"RECONCILED with Apify run record {e['run_id']}: {detail}; "
+                                              f"usageTotalUsd={rec.get('usageTotalUsd')}")
+            if delta:
+                lines.append(f"{e['label']}: raised by USD {delta:.3f} to the settled Apify figure USD {e['usd']:.3f}")
+    except (ApifyError, NetworkBlocked) as exc:
+        lines.append(f"reconciliation could not re-read run records ({exc}); logged figures are the pre-settlement "
+                     "floors, and the next run's ledger re-reads Apify")
+    return lines or ["all logged run costs match Apify's run records"]
+
+
 def spend_lines(budget: CostBudget) -> list[str]:
     return budget.ledger_lines() + [
         f"This run: USD {budget.run_spent:.3f} · project cumulative: USD {budget.spent:.3f} of USD "
@@ -708,7 +733,8 @@ def run(mode: str, out: Path | None = None) -> int:
         geocode_ok = probes.get("nominatim.openstreetmap.org", (False,))[0]
         for title, lines in validation_analysis(val_results, cfg, fx, http, geocode_ok):
             log.section(title, lines)
-        log.section("Apify spend — this run", spend_lines(budget))
+        rec_lines = reconcile_spend(budget, http, auth)
+        log.section("Apify spend — this run", spend_lines(budget) + rec_lines)
         log.write()
         print("\nValidation complete. Review SOURCE_AUDIT.md and RUN_LOG.md, then run --mode full.")
         return 0
@@ -734,7 +760,7 @@ def run(mode: str, out: Path | None = None) -> int:
         results[name] = res
         save_json(K.RAW / f"{name}_full_{res.started_at[:19].replace(':', '')}.json", res.raw_records)
     all_listings = [lst for r in results.values() for lst in r.listings]
-    log.section("Apify spend — collection", spend_lines(budget))
+    log.section("Apify spend — collection", spend_lines(budget) + reconcile_spend(budget, http, auth))
     log.section("Gate 4 — full collection", plan + [
         f"{n}: {r.status} · {len(r.listings)} records · cost USD {r.cost_usd:.3f}"
         + (f" · errors: {'; '.join(r.errors)}" if r.errors else "") for n, r in results.items()]
@@ -764,7 +790,8 @@ def run(mode: str, out: Path | None = None) -> int:
     paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, suffix="_REAL", http=http)
     log.section("Gate 9 — deliverables", [str(p.relative_to(K.ROOT)) for p in paths])
     qa_lines, ok = final_qa(ranked, paths, cfg, token, http)
-    log.section("Gate 10 — final QA", qa_lines + [f"total external cost: USD {budget.spent:.3f}"])
+    reconcile_spend(budget, http, auth)
+    log.section("Gate 10 — final QA", qa_lines + [f"project external cost (cumulative, reconciled): USD {budget.spent:.3f}"])
     log.write()
     http.close()
     return 0 if ok else 3

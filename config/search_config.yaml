@@ -156,6 +156,11 @@ cost_control:
   # Assumed cost of a run whose pricing cannot be parsed — an unknown cost is never treated as zero.
   unknown_pricing_run_usd: 0.50
   validation_items_per_segment: 5  # Gate 2: records per bedroom segment per portal
+  # Records one Actor run can return on the current Apify plan (FREE: 10, per the actors' docs). Runs never
+  # request more, so each run's worst-case price and Apify-side ceiling stay tight. To collect more on this
+  # plan add start URLs (e.g. result pages) to a segment — each URL is its own run. Raise only after an
+  # Apify plan upgrade.
+  apify_max_items_per_run: 10
   full_budget_share: 0.85        # fraction of the remaining budget the full run may commit (rest = QA re-checks)
   target_valid_unique: 30        # stop scaling up once this many valid unique candidates are expected
 

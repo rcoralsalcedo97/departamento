@@ -60,12 +60,21 @@ class CostBudget:
             left = min(left, self.account_headroom - self.run_spent)
         return max(0.0, left)
 
-    def charge(self, usd: float | None, label: str = "", basis: str = "") -> None:
+    def charge(self, usd: float | None, label: str = "", basis: str = "", run_id: str | None = None) -> None:
         if usd is None:
             raise ValueError("cost must be known or conservatively estimated — never None")
         self.spent += float(usd)
         self.ledger.append({"label": label, "usd": float(usd), "basis": basis, "cumulative": self.spent,
-                            "remaining": self.remaining})
+                            "remaining": self.remaining, "run_id": run_id})
+
+    def adjust(self, entry: dict, settled_usd: float, basis: str) -> float:
+        """Raise a ledger entry to the settled Apify figure (never lowered). Returns the increase."""
+        delta = max(0.0, settled_usd - entry["usd"])
+        if delta:
+            self.spent += delta
+            entry["usd"] += delta
+            entry["basis"] = basis
+        return delta
 
     def ledger_lines(self) -> list[str]:
         return [f"{e['label']}: USD {e['usd']:.3f} · cumulative USD {e['cumulative']:.3f} of {self.max_usd:.2f} · "

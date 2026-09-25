@@ -1,6 +1,6 @@
 # SOURCE_AUDIT
 
-Research date: 2026-09-24. Last automated update: 2026-09-24T19:31:58-05:00.
+Research date: 2026-09-24. Last automated update: 2026-09-24T19:57:13-05:00.
 
 Status meanings: **APPROVED** = validation run returned records with ≥90% core-field coverage (URL, rent, currency, bedrooms) and ≥60% area coverage · **PARTIAL** = records returned but weaker coverage or errors · **REJECTED** = source answered but could not be used (e.g. bot challenge — never bypassed) · **PENDING** = not yet testable (environment egress blocked or not automated).
 
@@ -15,40 +15,40 @@ Status meanings: **APPROVED** = validation run returned records with ≥90% core
 | www.adondevivir.com | reachable — HTTP 403 |
 | inmuebles.mercadolibre.com.pe | reachable — HTTP 403 |
 | departamento.mercadolibre.com.pe | reachable — HTTP 403 |
-| overpass-api.de | reachable — HTTP 406 |
+| overpass-api.de | UNREACHABLE — ConnectError: [Errno 104] Connection reset by peer |
 | nominatim.openstreetmap.org | reachable — HTTP 200 |
 | estadisticas.bcrp.gob.pe | reachable — HTTP 200 |
 | www.sunat.gob.pe | reachable — HTTP 200 |
 
-## Urbania — PARTIAL
+## Urbania — APPROVED
 
-- **Method:** Apify actor scrapers_lat/urbania-scraper (CLOUD_CREDENTIAL)
+- **Method:** Apify actor scrapers_lat/urbania-scraper (CLOUD_CREDENTIAL), one run per bedroom segment
 - **Target search URL:** https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima
 - **Records collected:** 10
 - **Public access:** Public search and detail pages, no login
 - **Pagination:** Handled by actor (direct: ?page=N)
-- **Detail pages:** Expected via actor (docs: 'all fields exposed by listing and detail pages')
-- **Contact data:** Expected: phone / WhatsApp (actor docs)
-- **Coordinates:** Expected (Navent geolocation; may be approximate) · observed 0%
-- **Publication date:** Expected (relative 'Publicado hace…') · observed 0%
+- **Detail pages:** Paid Apify plans only ('details' event). On the FREE plan the actor returns list-level output only — confirmed in validation (details events = 0)
+- **Contact data:** Detail pages only (paid plan): agentPhone / agentWhatsapp. Free plan: none — contact via listing
+- **Coordinates:** Detail pages only (paid plan). Free plan: none — geocoded only from specific address text · observed 0%
+- **Publication date:** Detail pages only (paid plan: publishDate). Free plan: none · observed 0%
 - **Maintenance fee:** Expected when advertiser publishes 'Mantenimiento' · observed 90%
-- **Completeness:** URL 100%, rent 100%, currency 100%, bedrooms 100%, area 0%, maintenance 90%, coordinates 0%, address 0%, publication date 0%, contact 0%, description 100%, images 0%
-- **Limitations / errors:** no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction; exactly 10 items returned — the actor's free-tier evaluation cap is likely active | Navent platform uses bot protection; direct scraping not attempted beyond one polite request. Actor input names partly undocumented — unknown inputs are dropped and filters re-applied after extraction.
+- **Completeness:** URL 100%, rent 100%, currency 100%, bedrooms 100%, area 100%, maintenance 90%, coordinates 0%, address 0%, publication date 0%, contact 0%, description 100%, images 100%
+- **Limitations / errors:** no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction | Navent platform uses bot protection; direct scraping not attempted beyond one polite request. Actor docs: free Apify plans are capped at 10 records per run and list-level output, so collection runs one Actor run per bedroom segment. Every filter is re-applied after extraction.
 
-## Adondevivir — PARTIAL
+## Adondevivir — APPROVED
 
-- **Method:** Apify actor scrapers_lat/adondevivir-scraper (CLOUD_CREDENTIAL)
+- **Method:** Apify actor scrapers_lat/adondevivir-scraper (CLOUD_CREDENTIAL), one run per bedroom segment
 - **Target search URL:** https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html
 - **Records collected:** 10
 - **Public access:** Public search and detail pages, no login
 - **Pagination:** Handled by actor (direct: -pagina-N.html)
-- **Detail pages:** Expected via actor
-- **Contact data:** Expected: agent phone and WhatsApp (actor docs)
-- **Coordinates:** Expected (same Navent backend as Urbania) · observed 0%
-- **Publication date:** Expected (relative) · observed 0%
-- **Maintenance fee:** Expected when published · observed 90%
-- **Completeness:** URL 100%, rent 100%, currency 100%, bedrooms 100%, area 0%, maintenance 90%, coordinates 0%, address 0%, publication date 0%, contact 0%, description 100%, images 0%
-- **Limitations / errors:** no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction; exactly 10 items returned — the actor's free-tier evaluation cap is likely active | Actor docs: free-tier runs capped at 10 listings. Same backend as Urbania, so many listings are cross-posted — handled by de-duplication (shared posting ids).
+- **Detail pages:** Paid Apify plans only ('details' event). FREE plan: list-level output only (confirmed)
+- **Contact data:** Detail pages only (paid plan): agentPhone / agentWhatsapp. Free plan: none — contact via listing
+- **Coordinates:** Detail pages only (paid plan). Free plan: none — geocoded only from specific address text · observed 0%
+- **Publication date:** Detail pages only (paid plan: publishedDate). Free plan: none · observed 0%
+- **Maintenance fee:** Expected when published · observed 80%
+- **Completeness:** URL 100%, rent 100%, currency 100%, bedrooms 100%, area 100%, maintenance 80%, coordinates 0%, address 0%, publication date 0%, contact 0%, description 100%, images 100%
+- **Limitations / errors:** no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction | Actor docs: free Apify plans are capped at 10 listings per run, list-level only. Same backend as Urbania, so many listings are cross-posted under a different posting id — grouped by de-duplication (same photo file, advertiser, description, area, price).
 
 ## Mercado Libre Inmuebles Perú — REJECTED
 

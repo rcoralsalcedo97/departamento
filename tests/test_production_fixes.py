@@ -193,9 +193,9 @@ class FakeClient:
     def run_record(self, run_id):
         return self.record
 
-    def settled_cost(self, run, fallback_usd, settle_s=0):
+    def settled_cost(self, run, fallback_usd, n_items=None, settle_s=0):
         from src.sources.apify_client import ApifyClient
-        return ApifyClient.settled_cost(self, run, fallback_usd, settle_s=0)
+        return ApifyClient.settled_cost(self, run, fallback_usd, n_items, settle_s=0)
 
     def _post(self, *a, **k):
         return {}
@@ -208,6 +208,23 @@ def test_paid_run_records_actual_not_stale_usage():
     assert cost == pytest.approx(0.13)
     assert budget.spent == pytest.approx(0.42) and budget.run_spent == pytest.approx(0.13)
     assert client.calls[0] == pytest.approx(0.01 + 10 * (0.012 + 0.009231))   # Apify-side ceiling = worst case
+
+
+def test_unsettled_record_never_below_delivered_records():
+    """Validation 2: right after the run, the record showed result 0 and USD 0.01; Apify later billed 0.07."""
+    stale = {**RUN_RECORD, "usageTotalUsd": 0.01, "chargedEventCounts": {"result": 0, "apify-actor-start": 1}}
+    budget = CostBudget(5.0)
+    _, _, cost, basis = paid_run(FakeClient(record=stale), budget, "a/b", ACTOR_INFO, {}, 10, "urbania 1BR", 0.5)
+    assert cost == pytest.approx(0.01 + 10 * 0.012) and "NOT yet settled" in basis
+
+
+def test_reconcile_raises_to_settled_figure():
+    budget = CostBudget(5.0, prior_spent=0.29)
+    budget.charge(0.01, "urbania 1BR", "early read", "run1")
+    entry = budget.ledger[0]
+    assert budget.adjust(entry, 0.07, "settled") == pytest.approx(0.06)
+    assert budget.adjust(entry, 0.05, "lower") == 0            # never lowered
+    assert budget.spent == pytest.approx(0.36)
 
 
 def test_paid_run_refuses_when_worst_case_exceeds_remaining():
@@ -268,3 +285,7 @@ def test_one_run_per_bedroom_segment(cfg, monkeypatch):
     assert runs == [("urbania 1BR", 1, 1, 5, 5), ("urbania 2BR", 2, 2, 5, 5)]
     assert [lst.search_segment for lst in res.listings] == ["1BR"] * 5 + ["2BR"] * 5
     assert res.cost_usd == pytest.approx(0.10) and isinstance(res, SourceResult)
+
+    runs.clear()   # full mode: a run never requests more than the plan returns
+    navent.collect_navent("urbania", cfg["sources"]["urbania"], cfg, None, CostBudget(5.0), "full", auth, max_items=77)
+    assert [r[4] for r in runs] == [10, 10]

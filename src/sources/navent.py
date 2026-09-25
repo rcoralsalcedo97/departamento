@@ -457,7 +457,7 @@ def collect_navent(name: str, scfg: dict, cfg: dict, http: PoliteClient, budget:
             seg_audit = {"bedrooms": beds, "runs": []}
             got: list[dict] = []
             for url in urls:
-                want = max_items - len(got)
+                want = min(max_items - len(got), int(cfg["cost_control"]["apify_max_items_per_run"]))
                 if want <= 0 or stop:
                     break
                 intent = _segment_intent(cfg, beds, url)

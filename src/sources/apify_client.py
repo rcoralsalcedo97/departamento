@@ -230,14 +230,16 @@ class ApifyClient:
     def run_record(self, run_id: str) -> dict:
         return self._get(f"/actor-runs/{run_id}")["data"]
 
-    def settled_cost(self, run: dict, fallback_usd: float, settle_s: float = 20.0) -> tuple[float, str]:
+    def settled_cost(self, run: dict, fallback_usd: float, n_items: int | None = None,
+                     settle_s: float = 90.0) -> tuple[float, str]:
         """Actual charge of a finished run, read from Apify's own run record.
 
-        ``chargedEventCounts`` × the run's ``eventPriceUsd`` is available as soon as the run ends;
-        ``usageTotalUsd`` can lag behind it for a few seconds (the first validation logged USD 0.01
-        for a run that was billed USD 0.13), so the record is re-read until the two agree and the
-        larger value is used. With no usable figure the conservative worst case is returned —
-        an unknown cost is never treated as zero."""
+        Apify books event charges asynchronously: right after a run ends BOTH ``chargedEventCounts``
+        and ``usageTotalUsd`` can still be short (validation 2 read USD 0.01 for a run later billed
+        USD 0.07). So the charge is never taken below a floor derived from what was actually
+        delivered — one-time start events + ``n_items`` × the primary per-record price — and the
+        record is re-read until it reaches that floor (or ``settle_s`` passes). The larger figure
+        wins. With no usable figure at all, the conservative worst case is returned."""
         deadline = time.monotonic() + settle_s
         rec = run
         while True:
@@ -248,15 +250,20 @@ class ApifyClient:
             computed, detail = charged_from_record(rec)
             reported = rec.get("usageTotalUsd")
             reported = float(reported) if reported is not None else None
-            settled = computed is not None and reported is not None and reported + 5e-4 >= computed
+            floor = delivered_floor(rec, n_items)
+            settled = (computed is not None and reported is not None and reported + 5e-4 >= computed
+                       and computed + 5e-4 >= (floor or 0.0))
             if settled or time.monotonic() > deadline:
                 break
-            time.sleep(4)
-        figures = [x for x in (computed, reported) if x is not None]
+            time.sleep(5)
+        figures = [x for x in (computed, reported, floor) if x is not None]
         if not figures:
             return fallback_usd, f"ESTIMATED worst case USD {fallback_usd:.3f} (Apify reported no charge data)"
-        return max(figures), (f"ACTUAL from Apify run record {rec.get('id')}: {detail or 'no event counts'}; "
-                              f"usageTotalUsd={reported if reported is not None else 'n/a'}")
+        cost = max(figures)
+        state = "settled" if settled else "NOT yet settled — floor from delivered records applied"
+        return cost, (f"ACTUAL from Apify run record {rec.get('id')} ({state}): {detail or 'no event counts'}; "
+                      f"usageTotalUsd={reported if reported is not None else 'n/a'}; delivered-records floor "
+                      f"USD {floor if floor is not None else 0:.3f}")
 
     def project_spend(self, actor_ids: set[str], since_iso: str) -> tuple[float, list[str]]:
         """Actual cumulative spend of this project: every run of the project's actors since the project
@@ -346,6 +353,23 @@ def charged_from_record(run: dict) -> tuple[float | None, str]:
     return None, ""
 
 
+def delivered_floor(run: dict, n_items: int | None) -> float | None:
+    """Least a PAY_PER_EVENT run can have billed: its start events + one primary event per delivered record."""
+    pricing = run.get("pricingInfo") or {}
+    if n_items is None or pricing.get("pricingModel") != "PAY_PER_EVENT":
+        return None
+    prices = event_prices(pricing)
+    events = ((pricing.get("pricingPerEvent") or {}).get("actorChargeEvents")) or {}
+    mem = int(((run.get("options") or {}).get("memoryMbytes")) or 1024)
+    start = sum(prices[n] * max(1, -(-mem // 1024)) for n, e in events.items()
+                if e.get("isOneTimeEvent") and "start" in n.lower())
+    primary = [prices[n] for n, e in events.items() if e.get("isPrimaryEvent")] or \
+              [prices[n] for n in events if n.lower() in ("result", "item", "listing")]
+    if not primary:
+        return None              # per-record price unknown: no floor (the caller falls back to the worst case)
+    return start + n_items * primary[0]
+
+
 def worst_case_cost(info: dict, max_items: int, run_input: dict, memory_mb: int = 1024) -> tuple[float | None, str]:
     """Most a run can bill: every start event plus every per-item event for ``max_items`` records, at
     the highest price tier. Opt-in AI add-ons are left out only while no ``*Ai*`` input is switched on.
@@ -392,17 +416,17 @@ def paid_run(client: ApifyClient, budget, actor_id: str, info: dict, run_input: 
             except Exception:  # noqa: BLE001 — best effort; it may already be finished
                 pass
             try:
-                cost, basis = client.settled_cost({"id": run_id}, worst)
+                cost, basis = client.settled_cost({"id": run_id}, worst, None)
             except Exception:  # noqa: BLE001
                 cost, basis = worst, f"ESTIMATED worst case USD {worst:.3f} (run {run_id} outcome unknown)"
-            budget.charge(cost, label, basis)
+            budget.charge(cost, label, basis, run_id)
         elif not (isinstance(exc, ApifyError) and "POST" in str(exc)):
             # the start request itself failed without an HTTP refusal (e.g. a timeout): the run may exist
             budget.charge(worst, label, f"ESTIMATED worst case USD {worst:.3f} (start request failed: "
                                         f"{type(exc).__name__}; run may have started)")
         raise ApifyError(f"{label}: {type(exc).__name__}: {exc}") from exc
-    cost, basis = client.settled_cost(run, worst)
-    budget.charge(cost, label, basis)
+    cost, basis = client.settled_cost(run, worst, len(items))
+    budget.charge(cost, label, basis, run.get("id"))
     return run, items, cost, f"{basis} · pre-launch worst case USD {worst:.3f} ({how})"
 
 
