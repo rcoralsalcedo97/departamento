@@ -11,3 +11,8 @@ data/geo/*.json
 data/manual/*
 !data/manual/.gitkeep
 !data/manual/README.md
+
+# internal run artefacts (QA page renders, pickled dataset, intermediate CSV)
+data/processed/qa/
+data/processed/*.pkl
+data/normalized/*.csv
