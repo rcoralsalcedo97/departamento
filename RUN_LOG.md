@@ -159,3 +159,59 @@ Finished: 2026-09-24T19:23:51-05:00
 - Method: CLOUD_CREDENTIAL
 - Detail: Authorization injected by the execution environment
 
+
+---
+
+## Run 2026-09-24T19:30:53-05:00 — mode `validate`
+
+Finished: 2026-09-24T19:31:58-05:00
+
+
+### Gate 0 — network preflight (one small request per host)
+
+- PASS  api.apify.com — HTTP 404
+- PASS  urbania.pe — HTTP 403
+- PASS  www.urbania.pe — HTTP 301
+- PASS  adondevivir.com — HTTP 301
+- PASS  www.adondevivir.com — HTTP 403
+- PASS  inmuebles.mercadolibre.com.pe — HTTP 403
+- PASS  departamento.mercadolibre.com.pe — HTTP 403
+- PASS  overpass-api.de — HTTP 406
+- PASS  nominatim.openstreetmap.org — HTTP 200
+- PASS  estadisticas.bcrp.gob.pe — HTTP 200
+- PASS  www.sunat.gob.pe — HTTP 200
+
+
+### Apify authentication
+
+- Apify authentication: AVAILABLE
+- Method: CLOUD_CREDENTIAL
+- Detail: Authorization injected by the execution environment
+
+
+### Exchange rate
+
+- 1 USD = S/ 3.385 — BCRP series PD04640PD (SBS sell rate), period 23.Set.26 — https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04640PD/json/2026-09-11/2026-09-25/ing — 2026-09-24T19:31:01-05:00
+
+
+### Gates 2–3 — validation run (10–20 records/source)
+
+| SOURCE | ACTOR / METHOD | RECORDS | VALID RENT % | VALID BEDROOMS % | VALID AREA % | MAINTENANCE % | COORDINATES % | CONTACT % | DATE % | ERRORS | COST |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| urbania | Apify actor scrapers_lat/urbania-scraper (CLOUD_CREDENTIAL) | 10 | 100% | 100% | 0% | 90% | 0% | 0% | 0% | — | USD 0.010 |
+| adondevivir | Apify actor scrapers_lat/adondevivir-scraper (CLOUD_CREDENTIAL) | 10 | 100% | 100% | 0% | 90% | 0% | 0% | 0% | — | USD 0.000 |
+| mercadolibre | direct HTML (robots.txt respected) | 0 | — | — | — | — | — | — | — | AccessBlocked: inmuebles.mercadolibre.com.pe returned HTTP 200 with a bot challenge — not bypassed | USD 0.000 |
+| manual | file import from /home/user/departamento/data/manual | 0 | — | — | — | — | — | — | — | — | USD 0.000 |
+- 
+- urbania: actor input sent = {"startUrls": ["https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=1&priceMax=1150&currencyId=2", "https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima?bedroomsNumber=2&priceMax=1150&currencyId=2"], "maxPrice": 1150, "priceCurrency": "USD", "minBedrooms": 1, "maxBedrooms": 2, "withDetails": true, "maxListings": 15}
+- urbania: actor input schema properties = ['maxAreaM2', 'maxBedrooms', 'maxListings', 'maxPrice', 'minAreaM2', 'minBathrooms', 'minBedrooms', 'minPrice', 'priceCurrency', 'startUrl', 'startUrls', 'withDetails']
+- urbania: pricing = PAY_PER_EVENT: result=$0.0000, details=$0.0000, apify-actor-start=$0.0000
+- urbania: dataset fields (non-empty count) = imageUrl(10), title(10), price(10), currency(10), priceUsd(10), pricePen(10), operationType(10), propertyType(10), bedrooms(10), bathrooms(10), totalAreaM2(10), location(10), description(10), publisherLogo(10), url(10), listingId(10), observedAt(10), pricePerM2(10), pricePerM2Currency(10), maintenanceFee(9), maintenanceFeeCurrency(9)
+- urbania: notes = no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction; exactly 10 items returned — the actor's free-tier evaluation cap is likely active
+- adondevivir: actor input sent = {"startUrls": ["https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-1-dormitorio.html", "https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores-con-2-dormitorios.html"], "maxPrice": 1150, "priceCurrency": "USD", "minBedrooms": 1, "maxBedrooms": 2, "withDetails": true, "maxListings": 15}
+- adondevivir: actor input schema properties = ['maxAreaM2', 'maxBedrooms', 'maxListings', 'maxPrice', 'minAreaM2', 'minBathrooms', 'minBedrooms', 'minPrice', 'priceCurrency', 'startUrl', 'startUrls', 'withAiFeatures', 'withAiListingSummary', 'withAiTranslate', 'withDetails']
+- adondevivir: pricing = PAY_PER_EVENT: result=$0.0000, details=$0.0000, ai_listing_summary=$0.0000, ai_features=$0.0000, ai_translate=$0.0000
+- adondevivir: dataset fields (non-empty count) = imageUrl(10), title(10), price(10), currency(10), priceUsd(10), pricePen(10), operationType(10), propertyType(10), isDevelopment(10), bedrooms(10), bathrooms(10), totalAreaM2(10), location(10), description(10), publisherLogo(10), url(10), listingId(10), observedAt(10), pricePerM2(10), pricePerM2Currency(10), maintenanceFee(9), maintenanceFeeCurrency(9)
+- adondevivir: notes = no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction; exactly 10 items returned — the actor's free-tier evaluation cap is likely active
+- manual: notes = no manual files present
+

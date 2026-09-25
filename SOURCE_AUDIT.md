@@ -1,6 +1,6 @@
 # SOURCE_AUDIT
 
-Research date: 2026-09-24. Last automated update: 2026-09-24T17:44:13-05:00.
+Research date: 2026-09-24. Last automated update: 2026-09-24T19:31:58-05:00.
 
 Status meanings: **APPROVED** = validation run returned records with ≥90% core-field coverage (URL, rent, currency, bedrooms) and ≥60% area coverage · **PARTIAL** = records returned but weaker coverage or errors · **REJECTED** = source answered but could not be used (e.g. bot challenge — never bypassed) · **PENDING** = not yet testable (environment egress blocked or not automated).
 
@@ -8,45 +8,49 @@ Status meanings: **APPROVED** = validation run returned records with ≥90% core
 
 | Host | Result |
 |---|---|
-| api.apify.com | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
-| urbania.pe | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
-| www.adondevivir.com | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
-| inmuebles.mercadolibre.com.pe | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
-| overpass-api.de | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
-| nominatim.openstreetmap.org | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
-| estadisticas.bcrp.gob.pe | UNREACHABLE — blocked by egress proxy (403 Forbidden) |
+| api.apify.com | reachable — HTTP 404 |
+| urbania.pe | reachable — HTTP 403 |
+| www.urbania.pe | reachable — HTTP 301 |
+| adondevivir.com | reachable — HTTP 301 |
+| www.adondevivir.com | reachable — HTTP 403 |
+| inmuebles.mercadolibre.com.pe | reachable — HTTP 403 |
+| departamento.mercadolibre.com.pe | reachable — HTTP 403 |
+| overpass-api.de | reachable — HTTP 406 |
+| nominatim.openstreetmap.org | reachable — HTTP 200 |
+| estadisticas.bcrp.gob.pe | reachable — HTTP 200 |
+| www.sunat.gob.pe | reachable — HTTP 200 |
 
-## Urbania — PENDING (environment egress blocked)
+## Urbania — PARTIAL
 
-- **Method:** direct HTML (no APIFY_TOKEN)
+- **Method:** Apify actor scrapers_lat/urbania-scraper (CLOUD_CREDENTIAL)
 - **Target search URL:** https://urbania.pe/buscar/alquiler-de-departamentos-en-miraflores--lima--lima
-- **Records collected:** 0
+- **Records collected:** 10
 - **Public access:** Public search and detail pages, no login
 - **Pagination:** Handled by actor (direct: ?page=N)
 - **Detail pages:** Expected via actor (docs: 'all fields exposed by listing and detail pages')
 - **Contact data:** Expected: phone / WhatsApp (actor docs)
-- **Coordinates:** Expected (Navent geolocation; may be approximate)
-- **Publication date:** Expected (relative 'Publicado hace…')
-- **Maintenance fee:** Expected when advertiser publishes 'Mantenimiento'
-- **Completeness:** not measured (no records)
-- **Limitations / errors:** NetworkBlocked: urbania.pe: ProxyError: 403 Forbidden — not bypassed; APIFY_TOKEN not set — trying one polite direct request; set the token for full coverage | Navent platform uses bot protection; direct scraping not attempted beyond one polite request. Actor input names partly undocumented — unknown inputs are dropped and filters re-applied after extraction.
+- **Coordinates:** Expected (Navent geolocation; may be approximate) · observed 0%
+- **Publication date:** Expected (relative 'Publicado hace…') · observed 0%
+- **Maintenance fee:** Expected when advertiser publishes 'Mantenimiento' · observed 90%
+- **Completeness:** URL 100%, rent 100%, currency 100%, bedrooms 100%, area 0%, maintenance 90%, coordinates 0%, address 0%, publication date 0%, contact 0%, description 100%, images 0%
+- **Limitations / errors:** no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction; exactly 10 items returned — the actor's free-tier evaluation cap is likely active | Navent platform uses bot protection; direct scraping not attempted beyond one polite request. Actor input names partly undocumented — unknown inputs are dropped and filters re-applied after extraction.
 
-## Adondevivir — PENDING (environment egress blocked)
+## Adondevivir — PARTIAL
 
-- **Method:** direct HTML (no APIFY_TOKEN)
+- **Method:** Apify actor scrapers_lat/adondevivir-scraper (CLOUD_CREDENTIAL)
 - **Target search URL:** https://www.adondevivir.com/departamentos-en-alquiler-en-miraflores.html
-- **Records collected:** 0
+- **Records collected:** 10
 - **Public access:** Public search and detail pages, no login
 - **Pagination:** Handled by actor (direct: -pagina-N.html)
 - **Detail pages:** Expected via actor
 - **Contact data:** Expected: agent phone and WhatsApp (actor docs)
-- **Coordinates:** Expected (same Navent backend as Urbania)
-- **Publication date:** Expected (relative)
-- **Maintenance fee:** Expected when published
-- **Completeness:** not measured (no records)
-- **Limitations / errors:** NetworkBlocked: www.adondevivir.com: ProxyError: 403 Forbidden — not bypassed; APIFY_TOKEN not set — trying one polite direct request; set the token for full coverage | Actor docs: free-tier runs capped at 10 listings. Same backend as Urbania, so many listings are cross-posted — handled by de-duplication (shared posting ids).
+- **Coordinates:** Expected (same Navent backend as Urbania) · observed 0%
+- **Publication date:** Expected (relative) · observed 0%
+- **Maintenance fee:** Expected when published · observed 90%
+- **Completeness:** URL 100%, rent 100%, currency 100%, bedrooms 100%, area 0%, maintenance 90%, coordinates 0%, address 0%, publication date 0%, contact 0%, description 100%, images 0%
+- **Limitations / errors:** no input for 'operation' in actor schema — filter re-applied after extraction; no input for 'property_type' in actor schema — filter re-applied after extraction; exactly 10 items returned — the actor's free-tier evaluation cap is likely active | Actor docs: free-tier runs capped at 10 listings. Same backend as Urbania, so many listings are cross-posted — handled by de-duplication (shared posting ids).
 
-## Mercado Libre Inmuebles Perú — PENDING (environment egress blocked)
+## Mercado Libre Inmuebles Perú — REJECTED
 
 - **Method:** direct HTML (robots.txt respected)
 - **Target search URL:** https://inmuebles.mercadolibre.com.pe/departamentos/alquiler/lima/miraflores/
@@ -59,7 +63,7 @@ Status meanings: **APPROVED** = validation run returned records with ≥90% core
 - **Publication date:** Relative 'Publicado hace…' on detail page
 - **Maintenance fee:** Sometimes (spec 'Mantenimiento' / 'Gastos comunes')
 - **Completeness:** not measured (no records)
-- **Limitations / errors:** NetworkBlocked: inmuebles.mercadolibre.com.pe: ProxyError: 403 Forbidden — not bypassed | Page layout changes periodically; parser supports current poly-card and legacy layouts. Reference repo rejected: no licence ('Private'), targets Mexico (MLM), relies on webdriver masking, UA rotation and residential proxy rotation.
+- **Limitations / errors:** AccessBlocked: inmuebles.mercadolibre.com.pe returned HTTP 200 with a bot challenge — not bypassed | Page layout changes periodically; parser supports current poly-card and legacy layouts. Reference repo rejected: no licence ('Private'), targets Mexico (MLM), relies on webdriver masking, UA rotation and residential proxy rotation.
 
 ## Manual import (agency sites, other portals) — SKIPPED
 

@@ -21,6 +21,7 @@ from ..http_client import NetworkBlocked, PoliteClient
 
 API = "https://api.apify.com/v2"
 TERMINAL = {"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"}
+WAIT_TIMEOUT_S = 90         # read timeout for calls that long-poll with waitForFinish=60 (client default is 30 s)
 
 
 class ApifyError(RuntimeError):
@@ -179,14 +180,16 @@ class ApifyClient:
         self.http = http
         self.headers = dict(auth.headers)
 
-    def _get(self, path: str, **params) -> Any:
-        r = self.http.request_json("GET", f"{API}{path}", headers=self.headers, params=params)
+    def _get(self, path: str, timeout: float | None = None, **params) -> Any:
+        kw = {"timeout": timeout} if timeout else {}
+        r = self.http.request_json("GET", f"{API}{path}", headers=self.headers, params=params, **kw)
         if r.status_code >= 400:
             raise ApifyError(f"GET {path} → HTTP {r.status_code}: {_scrub(r.text[:300])}")
         return r.json()
 
-    def _post(self, path: str, body: Any = None, **params) -> Any:
-        r = self.http.request_json("POST", f"{API}{path}", headers=self.headers, params=params, json=body)
+    def _post(self, path: str, body: Any = None, timeout: float | None = None, **params) -> Any:
+        kw = {"timeout": timeout} if timeout else {}
+        r = self.http.request_json("POST", f"{API}{path}", headers=self.headers, params=params, json=body, **kw)
         if r.status_code >= 400:
             raise ApifyError(f"POST {path} → HTTP {r.status_code}: {_scrub(r.text[:300])}")
         return r.json()
@@ -247,13 +250,14 @@ class ApifyClient:
         run = self._post(
             f"/acts/{actor_id.replace('/', '~')}/runs", run_input,
             maxItems=max_items, maxTotalChargeUsd=f"{max_charge_usd:.2f}", waitForFinish=60,
+            timeout=WAIT_TIMEOUT_S,
         )["data"]
         deadline = time.monotonic() + timeout_s
         while run.get("status") not in TERMINAL:
             if time.monotonic() > deadline:
                 self._post(f"/actor-runs/{run['id']}/abort")
                 raise ApifyError(f"run {run['id']} exceeded {timeout_s}s and was aborted")
-            run = self._get(f"/actor-runs/{run['id']}", waitForFinish=60)["data"]
+            run = self._get(f"/actor-runs/{run['id']}", waitForFinish=60, timeout=WAIT_TIMEOUT_S)["data"]
         items: list[dict] = []
         if run.get("defaultDatasetId"):
             offset = 0
