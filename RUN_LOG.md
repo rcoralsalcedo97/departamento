@@ -130,3 +130,42 @@ Finished: 2026-09-24T18:28:12-05:00
   automated Gate-10 QA (renders, clipping/overlap, links, demo/secret scans, hard rules).
 - Offline verification on synthetic data (scratch folder, `docs/preview/` left untouched): Gate-10 QA all PASS after
   fixing clipped cells in EXECUTIVE_SHORTLIST found by the new clipping check; 36 tests pass.
+
+---
+
+## Run 2026-09-24T19:07:26-05:00 — mode `preflight`
+
+Finished: 2026-09-24T19:07:29-05:00
+
+
+### Gate 0 — network preflight (one small request per host)
+
+- FAIL  api.apify.com — blocked by egress proxy (403 Forbidden)
+- FAIL  urbania.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  www.urbania.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  adondevivir.com — blocked by egress proxy (403 Forbidden)
+- FAIL  www.adondevivir.com — blocked by egress proxy (403 Forbidden)
+- FAIL  inmuebles.mercadolibre.com.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  departamento.mercadolibre.com.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  overpass-api.de — blocked by egress proxy (403 Forbidden)
+- FAIL  nominatim.openstreetmap.org — blocked by egress proxy (403 Forbidden)
+- FAIL  estadisticas.bcrp.gob.pe — blocked by egress proxy (403 Forbidden)
+- FAIL  www.sunat.gob.pe — blocked by egress proxy (403 Forbidden)
+
+
+### Apify authentication
+
+- Apify authentication: NOT AVAILABLE
+- Method: NONE
+- Detail: api.apify.com is unreachable from this environment (network egress policy) — allow api.apify.com
+
+
+---
+
+## Session notes 2026-09-25 (production execution attempt)
+
+- Environment `Default` ("trusted network access") — the custom allowlist is **not** in effect: all 11 hosts FAIL
+  at the egress proxy (CONNECT 403), including `api.apify.com`.
+- `APIFY_TOKEN` is **not set** in this session's environment and no `.env` exists → Apify authentication NOT AVAILABLE.
+- Per the run rules, validation/full runs were **not** started (no reachable source; no synthetic fallback).
+  External cost this session: USD 0.00. No `outputs/*_REAL.*` files produced.
