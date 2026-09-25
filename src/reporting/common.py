@@ -138,4 +138,12 @@ def contact_text(r) -> str:
 
 
 def noise_text(r) -> str:
-    return f"{r.get('noise_risk')} · conf. {str(r.get('noise_confidence') or '').lower()}"
+    return (f"{r.get('noise_label') or 'NOISE UNCERTAIN'} · {r.get('noise_risk') or 'UNKNOWN'} risk · "
+            f"{str(r.get('noise_confidence') or 'low').lower()} confidence")
+
+
+def quietness_value(r):
+    """The 0–100 score only where evidence supports it (location or noise wording); otherwise a dash."""
+    if r.get("quietness_supported") is False or r.get("noise_risk") == "UNKNOWN":
+        return "—"
+    return num(r.get("quietness_score_0_100"))

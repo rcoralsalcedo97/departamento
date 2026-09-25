@@ -30,6 +30,9 @@ from .qa.qa import RECHECK_FIELDS, LiveRechecker, run_qa
 from .reporting import common as C
 from .reporting.contact_templates import write_contact_templates
 from .reporting.excel import build_workbook
+from .reporting.excel_hi import translate_workbook
+from .reporting.i18n import L, MISSING, language
+from .reporting.i18n import t as t_
 from .reporting.report import build_report_html, html_to_pdf
 from .runlog import RunLog
 from .scoring.scoring import rank, score_all
@@ -243,7 +246,8 @@ def validation_analysis(val_results: dict[str, SourceResult], cfg: dict, fx: FxR
         if r["category"] in ("PRIMARY", "STRETCH"):
             return True
         reasons = [x for x in str(r.get("exclusion_reason") or "").split("; ") if x]
-        return r["category"] == "EXCLUDED" and bool(reasons) and all("above stretch ceiling" in x for x in reasons)
+        return r["category"] == "BORDERLINE" or (r["category"] == "EXCLUDED" and bool(reasons)
+                                                  and all("above stretch ceiling" in x for x in reasons))
     crecs = canon.to_dict("records")
     ok = [r for r in crecs if hard_ok(r)]
     by_beds = {b: sum(1 for r in ok if _num(r.get("bedrooms")) == b) for b in (1, 2)}
@@ -363,81 +367,143 @@ def write_source_audit_md(rows: list[dict], probes: dict | None, stamp: str) -> 
 
 
 def methodology_rows(cfg: dict, fx: FxRate, meta: dict) -> list[tuple[str, str]]:
+    """Methodology sheet rows in the active language (i18n.L). Same facts in English and Hindi."""
     s = cfg["scoring"]
     nm = cfg["noise_model"]
+    bl = cfg["budget"]["borderline_max_over_pct"]
+    fxp = cfg["fx"]["published_mismatch_flag_pct"]
     return [
-        ("Objective", "Find the strongest currently advertised 1–2 bedroom rentals inside Miraflores (Lima) for a "
-                      "couple, at or below USD 1,000/month, prioritising quiet and usable space."),
-        ("Hard requirements", "Miraflores only · rent (not sale) · apartment · 1–2 bedrooms (studios excluded unless "
-                              "the listing classifies the unit as 1 bedroom) · base rent ≤ USD 1,000. A high score "
-                              "never overrides a hard requirement."),
-        ("Stretch / near misses", "Rent USD 1,001–1,100 → STRETCH_NEGOTIABLE only. Outside Miraflores → NEAR_MISSES "
-                                  f"only if within {cfg['near_misses']['max_distance_outside_m']} m of the boundary, "
-                                  f"budget-compliant and fit ≥ {cfg['near_misses']['min_fit_score']}."),
-        ("Run", f"Generated {meta['generated_at']}. Listings collected: {meta['n_raw']}; unique after de-duplication: "
-                f"{meta['n_unique']}; budget-compliant matches: {meta['n_primary']}; stretch: {meta['n_stretch']}; "
-                f"near misses: {meta['n_near']}. External cost: USD {meta['cost']:.2f}."),
-        ("Exchange rate", f"1 USD = S/ {fx.usd_pen:.3f} · {fx.source} · {fx.timestamp}. Used for every conversion. "
-                          "Values published by the listing are marked PUBLISHED; converted values CALCULATED. "
-                          "Budget, ranking and USD/m² use one comparable USD value: the USD price for USD-priced "
-                          "listings, otherwise PEN ÷ this rate. The portal's own USD figure is kept separately; "
-                          f"a gap above {cfg['fx']['published_mismatch_flag_pct']}% is flagged "
-                          "CURRENCY_CONVERSION_MISMATCH."),
-        ("Fit score (100)", f"Quietness {s['quietness']} · Budget/total cost {s['budget']} · Space/layout {s['space']} · "
-                            f"Location/daily livability {s['location']} · Furnishing {s['furnishing']} · "
-                            f"Building/security/amenities {s['building']} · Listing quality/freshness {s['listing_quality']}."),
-        ("Budget classes", "STRICT_ALL_IN = rent + known maintenance ≤ USD 1,000 · BASE_RENT_COMPLIANT = rent ≤ USD 1,000 "
-                           "but the total is above USD 1,000 or unknown (maintenance not published) · STRETCH = rent "
-                           f"USD 1,001–1,100 (separate sheet). Ranking gives STRICT_ALL_IN a {cfg['budget']['strict_preference_margin']}-point "
-                           "preference, so a BASE_RENT_COMPLIANT unit only ranks above it with a clearly higher fit."),
-        ("Budget points", "Full points need a known total (rent + maintenance) ≤ USD 1,000; lower totals score higher. "
-                          "Unknown maintenance is scored on rent only and capped below a known total, and flagged."),
-        ("Foreign-tenant friendliness", "Evidence from listing text only: HIGH (foreigners/passport/corporate lease "
-                                        "explicitly welcome), MEDIUM (temporary stays, no guarantor, English listing, "
-                                        "furnished + utilities), POTENTIAL_FRICTION (asks for a Peruvian guarantor, carné "
-                                        "de extranjería or DNI), UNKNOWN (silent — the normal case, never penalised). "
-                                        "Not part of the fit score; no legal assumptions."),
-        ("Space points", "Area bands per bedroom count (1BR: <40 small, 40–49 acceptable, 50–59 good, ≥60 very spacious; "
-                         "2BR: <55, 55–69, 70–84, ≥85). Built (techada) area preferred over total area. Bonuses: 2nd "
-                         "bathroom, balcony/terrace, study, laundry, walk-in closet."),
-        ("Noise model", f"Baseline {nm['baseline']}. Major road (OSM motorway/trunk/primary) ≤{nm['major_road']['strong_m']} m "
-                        f"−{nm['major_road']['strong_penalty']}, ≤{nm['major_road']['moderate_m']} m −{nm['major_road']['moderate_penalty']}, "
-                        f"≤{nm['major_road']['mild_m']} m −{nm['major_road']['mild_penalty']}; secondary arterial ≤{nm['arterial_road']['strong_m']} m "
-                        f"−{nm['arterial_road']['strong_penalty']}; nightclub ≤{nm['nightclub']['strong_m']} m −{nm['nightclub']['strong_penalty']}, "
-                        f"≤{nm['nightclub']['moderate_m']} m −{nm['nightclub']['moderate_penalty']}; ≥{nm['bar_cluster']['many_threshold']} bars "
-                        f"within {nm['bar_cluster']['radius_m']} m −{nm['bar_cluster']['many_penalty']}; interior-facing "
-                        f"+{nm['text_signals']['interior_view']}; acoustic windows +{nm['text_signals']['acoustic_windows']}; "
-                        f"avenue view {nm['text_signals']['avenue_view']}; floor ≥{nm['text_signals']['high_floor_min']} "
-                        f"+{nm['text_signals']['high_floor_bonus']}. LOW risk ≥{nm['risk_thresholds']['low_from']}, "
-                        f"MEDIUM ≥{nm['risk_thresholds']['medium_from']}, else HIGH. Confidence HIGH needs exact "
-                        "coordinates + stated orientation; LOW when location is approximate or missing (then the "
-                        "score is shrunk toward neutral). It is an estimate — confirm in person."),
-        ("Change vs brief", "Added a secondary-arterial tier and restaurant-cluster penalty (busy frontage), and "
-                            "confidence shrinkage when coordinates are missing. Near misses additionally require "
-                            "proximity to the boundary. Portal price filter set to USD 1,150 (not 1,000) so the "
-                            "stretch band and PEN-priced listings are not lost; every record is re-validated. "
-                            "Ranking rule: units with HIGH estimated noise (medium/high confidence) are ranked after "
-                            "all LOW/MEDIUM units, because quiet is the first priority; with LOW confidence (approximate "
-                            "or missing location) no demotion is applied."),
-        ("Livability", "Distance to supermarket (≤500 m), pharmacy (≤400 m), park (≤300 m), café (≤300 m), bus/"
-                       "Metropolitano stop (≤400 m), Malecón (≤900 m); half credit up to 1.6× those distances. "
-                       "Nightlife is never rewarded."),
-        ("Value bands", "USD per m² within the same bedroom count, relative to this sample only: lowest quartile "
-                        "EXCELLENT_VALUE, then GOOD, FAIR, EXPENSIVE_RELATIVE_TO_SAMPLE. Not an official valuation."),
-        ("De-duplication", "Pairs scored on URL, portal id, coordinates, area, price, bathrooms, maintenance, advertiser, "
-                           "phone, fuzzy title and description (rapidfuzz), normalised address and shared photo ids. A "
-                           "merge also needs a hard identity anchor (same URL or posting id, the same photo file, "
-                           "coordinates within a few metres or the same numbered address): matching price, area and "
-                           "maintenance alone never merge two listings. Groups keep every source URL; the most "
-                           "complete record is canonical; conflicts are flagged."),
-        ("Availability", "LIKELY_ACTIVE = returned by a live search at scrape time. ACTIVE_CONFIRMED = source page "
-                         "re-opened successfully during QA. Never stated as guaranteed."),
-        ("Unknown values", "Shown as UNKNOWN. Nothing is imputed. Maintenance read from description text is used "
-                           "only when the portal field is empty and is flagged in the evidence column."),
-        ("Data sources", "Portals via Apify actors or polite direct requests (robots.txt, ≥2 s spacing, no login, "
-                         "no CAPTCHA solving). Map data © OpenStreetMap contributors (ODbL) via Overpass."),
-        ("Limitations", "Advertiser-reported data; approximate portal locations; OSM may miss venues; the noise model "
-                        "cannot see building insulation or neighbours; availability changes daily."),
+        (L("Objective", "उद्देश्य"),
+         L("Find the strongest currently advertised 1–2 bedroom rentals inside Miraflores (Lima) for a couple, at or "
+           "below USD 1,000/month, prioritising quiet and usable space.",
+           "Miraflores (Lima) में एक दंपति के लिए अभी विज्ञापित सबसे उपयुक्त 1–2 बेडरूम किराये के अपार्टमेंट खोजना — मासिक "
+           "किराया USD 1,000 या उससे कम, शांत वातावरण और उपयोगी जगह को प्राथमिकता।")),
+        (L("Hard requirements", "अनिवार्य शर्तें"),
+         L("Miraflores only · rent (not sale) · apartment · 1–2 bedrooms (studios excluded unless the listing classifies "
+           "the unit as 1 bedroom) · base rent ≤ USD 1,000. A high score never overrides a hard requirement.",
+           "केवल Miraflores · किराया (बिक्री नहीं) · अपार्टमेंट · 1–2 बेडरूम (स्टूडियो शामिल नहीं, जब तक विज्ञापन उसे 1 बेडरूम "
+           "न बताए) · मूल किराया ≤ USD 1,000। ऊँचा स्कोर कभी भी किसी अनिवार्य शर्त से ऊपर नहीं होता।")),
+        (L("Budget classes", "बजट श्रेणियाँ"),
+         L(f"STRICT_ALL_IN = rent + known maintenance ≤ USD 1,000 · BASE_RENT_COMPLIANT = rent ≤ USD 1,000 but the total "
+           f"is above USD 1,000 or unknown · STRETCH = rent USD 1,001–1,100 (separate sheet) · BORDERLINE = at most {bl:g}% "
+           f"above USD 1,100 after currency conversion (NEAR_MISSES sheet; never budget-compliant). STRICT_ALL_IN gets a "
+           f"{cfg['budget']['strict_preference_margin']}-point ranking preference.",
+           f"STRICT_ALL_IN = किराया + ज्ञात रखरखाव शुल्क ≤ USD 1,000 · BASE_RENT_COMPLIANT = किराया ≤ USD 1,000, पर कुल खर्च "
+           f"USD 1,000 से अधिक या अज्ञात · STRETCH = किराया USD 1,001–1,100 (अलग शीट) · BORDERLINE = मुद्रा-रूपांतरण के बाद "
+           f"USD 1,100 से अधिकतम {bl:g}% ऊपर (लगभग उपयुक्त शीट; कभी बजट के भीतर नहीं)। STRICT_ALL_IN को रैंकिंग में "
+           f"{cfg['budget']['strict_preference_margin']} अंकों की प्राथमिकता मिलती है।")),
+        (L("Near misses", "लगभग उपयुक्त"),
+         L(f"Outside Miraflores → NEAR_MISSES only if within {cfg['near_misses']['max_distance_outside_m']} m of the "
+           f"boundary, budget-compliant and fit ≥ {cfg['near_misses']['min_fit_score']}.",
+           f"Miraflores के बाहर → लगभग उपयुक्त शीट में केवल तभी, जब सीमा से {cfg['near_misses']['max_distance_outside_m']} "
+           f"मीटर के भीतर हो, बजट में हो और उपयुक्तता स्कोर ≥ {cfg['near_misses']['min_fit_score']} हो।")),
+        (L("Run", "यह खोज"),
+         L(f"Generated {meta['generated_at']}. Records collected: {meta['n_raw']}; unique after de-duplication: "
+           f"{meta['n_unique']}; budget-compliant: {meta['n_primary']}; stretch: {meta['n_stretch']}; borderline: "
+           f"{meta.get('n_borderline', 0)}; near misses: {meta['n_near']}. Cumulative project cost (Apify run records): "
+           f"USD {meta['cost']:.2f} of the USD 5.00 cap.",
+           f"तैयार: {meta['generated_at']}। एकत्रित रिकॉर्ड: {meta['n_raw']}; दोहराव हटाने के बाद अद्वितीय: {meta['n_unique']}; "
+           f"बजट के भीतर: {meta['n_primary']}; स्ट्रेच: {meta['n_stretch']}; सीमा-रेखा: {meta.get('n_borderline', 0)}; "
+           f"लगभग उपयुक्त: {meta['n_near']}। परियोजना की कुल लागत (Apify रन रिकॉर्ड): USD 5.00 की सीमा में से "
+           f"USD {meta['cost']:.2f}।")),
+        (L("Sources", "स्रोत"),
+         L("Urbania and Adondevivir via Apify (free plan: at most 10 records per run, list-level data only — no detail "
+           "pages, so no coordinates, phone numbers or publication dates). One run per bedroom count so neither segment "
+           "crowds out the other. Mercado Libre: polite direct requests only; any bot challenge stops it (never bypassed).",
+           "Urbania और Adondevivir, Apify के माध्यम से (निःशुल्क प्लान: प्रति रन अधिकतम 10 रिकॉर्ड, केवल सूची-स्तर की "
+           "जानकारी — विवरण पेज नहीं, इसलिए निर्देशांक, फ़ोन नंबर या प्रकाशन तिथि नहीं)। बेडरूम की हर संख्या के लिए अलग रन, "
+           "ताकि कोई एक श्रेणी दूसरी की जगह न ले। Mercado Libre: केवल सामान्य सीधे अनुरोध; कोई भी बॉट-जाँच आने पर रुक जाता है "
+           "(कभी दरकिनार नहीं)।")),
+        (L("Exchange rate", "विनिमय दर"),
+         L(f"1 USD = S/ {fx.usd_pen:.3f} · {fx.source} · {fx.timestamp}. One rate for every conversion. Budget, ranking, "
+           f"USD/m² and totals use one comparable USD value: the USD price for USD-priced listings, otherwise PEN ÷ this "
+           f"rate (CALCULATED). The portal's own USD figure is kept separately; a gap above {fxp}% is flagged "
+           f"CURRENCY_CONVERSION_MISMATCH.",
+           f"1 USD = S/ {fx.usd_pen:.3f} · {fx.source} · {fx.timestamp}। हर रूपांतरण के लिए एक ही दर। बजट, रैंकिंग, USD/m² "
+           f"और कुल खर्च के लिए एक तुलनीय USD मान: USD में दिए किराये के लिए वही USD, अन्यथा PEN ÷ यह दर (CALCULATED)। "
+           f"पोर्टल का अपना USD आँकड़ा अलग रखा गया है; {fxp}% से अधिक अंतर पर CURRENCY_CONVERSION_MISMATCH चिह्न।")),
+        (L("Fit score (100)", "उपयुक्तता स्कोर (100)"),
+         L(f"Quietness {s['quietness']} · Budget/total cost {s['budget']} · Space/layout {s['space']} · Location/daily "
+           f"livability {s['location']} · Furnishing {s['furnishing']} · Building/security/amenities {s['building']} · "
+           f"Listing quality/freshness {s['listing_quality']}.",
+           f"शांत वातावरण {s['quietness']} · बजट/कुल खर्च {s['budget']} · जगह/बनावट {s['space']} · स्थान/दैनिक सुविधा "
+           f"{s['location']} · फ़र्नीचर {s['furnishing']} · भवन/सुरक्षा/सुविधाएँ {s['building']} · विज्ञापन की गुणवत्ता "
+           f"{s['listing_quality']}।")),
+        (L("Noise categories", "शोर की श्रेणियाँ"),
+         L("LIKELY QUIET = low risk with medium/high confidence · POSSIBLY QUIET = positive listing wording only (e.g. "
+           "interior-facing) · NOISE UNCERTAIN = no or mixed evidence · LIKELY NOISY = on a major arterial (e.g. Av. Paseo "
+           "de la República / Vía Expresa), faces an avenue, or high risk with a reliable location. Risk LOW/MEDIUM/HIGH/"
+           "UNKNOWN always comes with a confidence HIGH/MEDIUM/LOW; UNKNOWN = no location and no noise wording. "
+           "Low-confidence evidence never pushes an otherwise good apartment down the ranking.",
+           "संभवतः शांत = कम जोखिम, मध्यम/उच्च विश्वसनीयता · शायद शांत = केवल विज्ञापन में सकारात्मक उल्लेख (जैसे भीतर की ओर) "
+           "· शोर अनिश्चित = प्रमाण नहीं या मिश्रित · संभवतः शोरगुल वाला = मुख्य सड़क पर (जैसे Av. Paseo de la República / "
+           "Vía Expresa), एवेन्यू की ओर, या भरोसेमंद स्थान के साथ अधिक जोखिम। जोखिम (कम/मध्यम/अधिक/अज्ञात) के साथ हमेशा "
+           "विश्वसनीयता (उच्च/मध्यम/कम) दी गई है; अज्ञात = न स्थान, न शोर का कोई उल्लेख। कम विश्वसनीयता वाला प्रमाण किसी अच्छे "
+           "अपार्टमेंट को रैंकिंग में नीचे नहीं धकेलता।")),
+        (L("Noise model", "शोर का आकलन"),
+         L(f"With a reliable position: baseline {nm['baseline']}, penalties for major roads (≤{nm['major_road']['strong_m']} m "
+           f"−{nm['major_road']['strong_penalty']}), arterials, nightclubs and bar clusters (OpenStreetMap), plus listing "
+           "text (interior-facing, acoustic windows, avenue view, high floor). Without a position: listing text only, "
+           "shrunk towards neutral, confidence LOW. It is an estimate — confirm in person.",
+           f"भरोसेमंद स्थान होने पर: आधार {nm['baseline']}, मुख्य सड़कों (≤{nm['major_road']['strong_m']} मीटर "
+           f"−{nm['major_road']['strong_penalty']}), आर्टेरियल सड़कों, नाइटक्लब और बार के समूह (OpenStreetMap) के लिए अंक "
+           "घटाए जाते हैं, साथ में विज्ञापन का विवरण (भीतर की ओर, ध्वनिरोधी खिड़कियाँ, एवेन्यू की ओर, ऊँची मंज़िल)। स्थान न होने "
+           "पर: केवल विज्ञापन का विवरण, तटस्थ की ओर समायोजित, विश्वसनीयता कम। यह एक अनुमान है — स्वयं पुष्टि करें।")),
+        (L("Coordinates", "निर्देशांक"),
+         L("Geocoded (OpenStreetMap Nominatim) only from specific address text in the listing: street + number → HIGH "
+           "confidence when the house number matches, otherwise street-level MEDIUM; street + block → MEDIUM. District or "
+           "zone names alone are never geocoded — those listings keep an UNKNOWN location. Only HIGH / exact positions "
+           "are drawn on the report map.",
+           "स्थान (OpenStreetMap Nominatim) केवल विज्ञापन में लिखे स्पष्ट पते से निकाला गया: सड़क + नंबर → मकान नंबर मिलने पर "
+           "उच्च विश्वसनीयता, अन्यथा सड़क-स्तर मध्यम; सड़क + ब्लॉक → मध्यम। केवल ज़िले या क्षेत्र के नाम से कभी स्थान नहीं "
+           "निकाला गया — ऐसे अपार्टमेंट का स्थान अज्ञात रखा गया। रिपोर्ट के नक्शे पर केवल उच्च/सटीक स्थान दिखाए गए।")),
+        (L("Foreign-tenant friendliness", "विदेशी किरायेदार के लिए अनुकूलता"),
+         L("From listing text only: HIGH (foreigners/passport/corporate lease explicitly welcome), MEDIUM (temporary "
+           "stays, no guarantor, English listing, furnished + utilities), POTENTIAL_FRICTION (asks for a Peruvian "
+           "guarantor, carné de extranjería or DNI), UNKNOWN (silent — the normal case, never penalised). Where silent, "
+           "confirm passport acceptance, carné de extranjería, proof of income, guarantor (aval), deposit and minimum term.",
+           "केवल विज्ञापन के विवरण से: HIGH (विदेशियों/पासपोर्ट/कंपनी-अनुबंध का स्पष्ट स्वागत), MEDIUM (अस्थायी अवधि, गारंटर "
+           "नहीं, अंग्रेज़ी विज्ञापन, सुसज्जित + सेवाएँ शामिल), POTENTIAL_FRICTION (पेरू के गारंटर, carné de extranjería या DNI "
+           "की माँग), UNKNOWN (कोई उल्लेख नहीं — सामान्य स्थिति, कोई नकारात्मक अंक नहीं)। उल्लेख न होने पर पासपोर्ट की "
+           "स्वीकार्यता, carné de extranjería, आय का प्रमाण, गारंटर (aval), जमा राशि और न्यूनतम अवधि की पुष्टि करें।")),
+        (L("Availability", "उपलब्धता"),
+         L("ACTIVE_CONFIRMED = listing re-opened successfully during the final Top-10 re-check · LIKELY_ACTIVE = returned "
+           "by the live search, automated re-check not possible (portal bot protection) · UNKNOWN = not confirmed. Never "
+           "stated as guaranteed.",
+           "ACTIVE_CONFIRMED = अंतिम शीर्ष-10 पुनः-जाँच में विज्ञापन सफलतापूर्वक दोबारा खुला · LIKELY_ACTIVE = लाइव खोज में "
+           "मिला, स्वचालित पुनः-जाँच संभव नहीं (पोर्टल की बॉट-सुरक्षा) · UNKNOWN = पुष्टि नहीं। कभी गारंटी नहीं दी गई।")),
+        (L("De-duplication", "दोहराव हटाना"),
+         L("Pairs scored on URL, portal id, coordinates, area, price, bathrooms, maintenance, advertiser, fuzzy title and "
+           "description, address and shared photo ids. A merge also needs an identity anchor (same URL or posting id, the "
+           "same photo file, coordinates within a few metres or the same numbered address): matching price, area and "
+           "maintenance alone never merge two listings. Every source link is kept.",
+           "जोड़ियों की तुलना URL, पोर्टल ID, निर्देशांक, क्षेत्रफल, किराया, बाथरूम, रखरखाव शुल्क, विज्ञापनदाता, शीर्षक व विवरण की "
+           "समानता, पते और साझा फ़ोटो ID से की गई। जोड़ने के लिए पहचान का ठोस आधार भी चाहिए (एक ही URL या पोस्टिंग ID, एक ही "
+           "फ़ोटो फ़ाइल, कुछ मीटर के भीतर निर्देशांक या एक ही नंबर वाला पता): केवल किराया, क्षेत्रफल और रखरखाव शुल्क का मेल कभी "
+           "दो विज्ञापनों को नहीं जोड़ता। हर स्रोत का लिंक रखा गया है।")),
+        (L("Codes used", "प्रयुक्त कोड"),
+         L("Classification codes are kept identical in the English and Hindi files: STRICT_ALL_IN, BASE_RENT_COMPLIANT, "
+           "STRETCH, BORDERLINE (budget) · ACTIVE_CONFIRMED, LIKELY_ACTIVE, UNKNOWN (availability) · HIGH, MEDIUM, "
+           "POTENTIAL_FRICTION, UNKNOWN (foreign tenant) · PUBLISHED / CALCULATED (value published by the listing or "
+           "converted) · red-flag codes such as UNKNOWN_MAINTENANCE (maintenance not published), NO_COORDINATES (no map "
+           "position), ON_MAJOR_ARTERIAL (address on a major arterial).",
+           "वर्गीकरण कोड अंग्रेज़ी और हिंदी फ़ाइलों में एक जैसे रखे गए हैं: STRICT_ALL_IN, BASE_RENT_COMPLIANT, STRETCH, "
+           "BORDERLINE (बजट) · ACTIVE_CONFIRMED, LIKELY_ACTIVE, UNKNOWN (उपलब्धता) · HIGH, MEDIUM, POTENTIAL_FRICTION, UNKNOWN "
+           "(विदेशी किरायेदार) · PUBLISHED / CALCULATED (विज्ञापन में प्रकाशित या रूपांतरित मान) · चेतावनी कोड, जैसे "
+           "UNKNOWN_MAINTENANCE (रखरखाव शुल्क प्रकाशित नहीं), NO_COORDINATES (नक्शे पर स्थान नहीं), ON_MAJOR_ARTERIAL (पता "
+           "मुख्य सड़क पर)।")),
+        (L("Unknown values", "अज्ञात मान"),
+         L("Shown as UNKNOWN (Hindi: जानकारी उपलब्ध नहीं). Nothing is imputed; no phone number, WhatsApp or date is ever "
+           "invented. The listing link is the contact path when no phone is published.",
+           "जानकारी उपलब्ध न होने पर यही लिखा गया है। कुछ भी अनुमान से नहीं भरा गया; कोई फ़ोन नंबर, WhatsApp या तिथि कभी गढ़ी "
+           "नहीं गई। फ़ोन न होने पर विज्ञापन का लिंक ही संपर्क का माध्यम है।")),
+        (L("Limitations", "सीमाएँ"),
+         L("Advertiser-reported data; the free Apify plan returns list-level data only; most locations are known only to "
+           "the zone; OpenStreetMap may miss venues; availability changes daily. Scores rank options — they do not replace "
+           "a visit.",
+           "जानकारी विज्ञापनदाताओं द्वारा दी गई है; Apify का निःशुल्क प्लान केवल सूची-स्तर की जानकारी देता है; अधिकांश स्थान "
+           "केवल क्षेत्र तक ज्ञात हैं; OpenStreetMap में कुछ स्थान छूट सकते हैं; उपलब्धता रोज़ बदलती है। स्कोर केवल विकल्पों को "
+           "क्रम देते हैं — ये स्वयं जाकर देखने का विकल्प नहीं हैं।")),
     ]
 
 
@@ -518,22 +584,35 @@ def process(listings: list[Listing], cfg: dict, fx: FxRate, http: PoliteClient |
 
 
 def deliver(ranked: pd.DataFrame, cfg: dict, fx: FxRate, meta: dict, audit_rows: list[dict],
-            layers: OsmLayers | None, out_dir: Path, banner: str | None, prefix: str = "", suffix: str = "",
-            http: PoliteClient | None = None) -> tuple[Path, Path, Path]:
+            layers: OsmLayers | None, out_dir: Path, banner: str | None, prefix: str = "",
+            http: PoliteClient | None = None) -> dict[str, tuple[Path, Path, Path]]:
+    """English master deliverables, then the Hindi copies of the *same* final data.
+
+    The Hindi workbook is translated cell by cell from the finished English workbook; the Hindi PDF and
+    contact templates render the same ranked records (no re-scoring, no re-ranking)."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    xlsx = out_dir / f"{prefix}Miraflores_Rental_Shortlist{suffix}.xlsx"
-    html_path = out_dir / f"{prefix}Miraflores_Rental_Executive_Report{suffix}.html"
-    pdf = out_dir / f"{prefix}Miraflores_Rental_Executive_Report{suffix}.pdf"
-    txt = out_dir / f"{prefix}Contact_Templates{suffix}.txt"
-    build_workbook(xlsx, ranked, meta, audit_rows, methodology_rows(cfg, fx, meta), banner)
     geo = {"boundary_ll": layers.boundary_ll, "road_lines_ll": layers.road_lines_ll} if layers else None
     top = ranked[ranked["category"] == "PRIMARY"].sort_values("rank_in_category").head(meta["top_n"])
-    thumbs = fetch_thumbnails(top.head(5), http) if http is not None else {}
-    html_path.write_text(build_report_html(ranked, meta, audit_rows, geo, banner, thumbs), encoding="utf-8")
-    html_to_pdf(html_path, pdf, banner)
-    write_contact_templates(txt, [{"_label": C.property_label(r), "_contact": C.contact_text(r), **r}
-                                  for r in C.records(top)])
-    return xlsx, pdf, txt
+    MISSING.clear()
+    paths: dict[str, tuple[Path, Path, Path]] = {}
+    for lang in ("en", "hi"):
+        sfx = f"_{lang.upper()}"
+        xlsx = out_dir / f"{prefix}Miraflores_Rental_Shortlist{sfx}.xlsx"
+        html_path = out_dir / f"{prefix}Miraflores_Rental_Executive_Report{sfx}.html"
+        pdf = out_dir / f"{prefix}Miraflores_Rental_Executive_Report{sfx}.pdf"
+        txt = out_dir / f"{prefix}Contact_Templates{sfx}.txt"
+        with language(lang):
+            meth = methodology_rows(cfg, fx, meta)
+            contacts = [{"_label": C.property_label(r), "_contact": " · ".join(t_(p, record=False) for p in C.contact_text(r).split(" · ")), **r} for r in C.records(top)]
+        if lang == "en":
+            build_workbook(xlsx, ranked, meta, audit_rows, meth, banner)
+        else:
+            translate_workbook(paths["en"][0], xlsx, meth)
+        html_path.write_text(build_report_html(ranked, meta, audit_rows, geo, banner, lang=lang), encoding="utf-8")
+        html_to_pdf(html_path, pdf, banner, lang=lang)
+        write_contact_templates(txt, contacts, lang=lang)
+        paths[lang] = (xlsx, pdf, txt)
+    return paths
 
 
 def fetch_thumbnails(top: pd.DataFrame, http: PoliteClient) -> dict[str, str]:
@@ -562,6 +641,7 @@ def make_meta(cfg: dict, fx: FxRate, n_raw: int, ranked: pd.DataFrame, cost: flo
     return {"generated_at": now_iso(), "fx_rate": fx.usd_pen, "fx_source": f"{fx.source} ({fx.timestamp})",
             "fx_source_short": short, "n_raw": n_raw, "n_unique": len(canon), "n_primary": cat.get("PRIMARY", 0),
             "n_stretch": cat.get("STRETCH", 0), "n_near": cat.get("NEAR_MISS", 0), "cost": cost,
+            "n_borderline": cat.get("BORDERLINE", 0), "fx_flag_pct": cfg["fx"]["published_mismatch_flag_pct"],
             "top_n": cfg["shortlist"]["top_n"], "alternatives_max": cfg["shortlist"]["alternatives_max"],
             "budget": cfg["budget"]["target_max_rent"]}
 
@@ -688,8 +768,8 @@ def run(mode: str, out: Path | None = None) -> int:
         meta = json.loads((K.PROCESSED / "meta.json").read_text(encoding="utf-8"))
         meta["generated_at"] = now_iso()
         layers = _load_layers(cfg, http, log)
-        paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, suffix="_REAL", http=http)
-        log.section("Gate 9 — deliverables (rebuilt)", [str(p.relative_to(K.ROOT)) for p in paths])
+        paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, http=http)
+        log.section("Gate 9 — deliverables (rebuilt)", [str(p.relative_to(K.ROOT)) for v in paths.values() for p in v])
         qa_lines, ok = final_qa(ranked, paths, cfg, token, http)
         log.section("Gate 10 — final QA", qa_lines)
         log.write()
@@ -706,11 +786,15 @@ def run(mode: str, out: Path | None = None) -> int:
             "Urbania/Adondevivir fall back to one polite direct request each (stops at any bot challenge)."])
     val_results, cov, statuses = {}, {}, {}
     for name in enabled:
-        res = collect(name, cfg, http, budget, "validate", auth)
+        # full mode: a paid source is collected once, directly at full size (the sample was validated in the
+        # separate --mode validate run); paying for a second, smaller copy of the same records adds nothing
+        direct_full = mode == "full" and cfg["sources"][name].get("method") == "apify" and auth.available
+        res = collect(name, cfg, http, budget, "full" if direct_full else "validate", auth)
         val_results[name] = res
         cov[name] = coverage(res.listings)
         statuses[name] = source_status(res, cov[name])
-        save_json(K.RAW / f"{name}_validation_{res.started_at[:19].replace(':', '')}.json", res.raw_records)
+        save_json(K.RAW / f"{name}_{'full' if direct_full else 'validation'}_{res.started_at[:19].replace(':', '')}.json",
+                  res.raw_records)
     vrows = [validation_row(n, r) for n, r in val_results.items()]
     details = []
     for n, r in val_results.items():
@@ -746,6 +830,12 @@ def run(mode: str, out: Path | None = None) -> int:
     plan = []
     for name in enabled:
         vres = val_results[name]
+        if mode == "full" and cfg["sources"][name].get("method") == "apify" and auth.available:
+            results[name] = vres
+            plan.append(f"{name}: collected once at full size (one run per bedroom segment, ≤ "
+                        f"{cfg['cost_control']['apify_max_items_per_run']} records per run on the current Apify plan); "
+                        f"{len(vres.listings)} records")
+            continue
         if name == "manual" or not validation_ok(vres):
             results[name] = vres
             plan.append(f"{name}: no full run ({'manual import' if name == 'manual' else 'validation sample not usable'}); "
@@ -787,8 +877,8 @@ def run(mode: str, out: Path | None = None) -> int:
         .to_csv(K.PROCESSED / "listings_ranked.csv", index=False)
     save_json(K.PROCESSED / "audit_rows.json", audit_rows)
     save_json(K.PROCESSED / "meta.json", meta)
-    paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, suffix="_REAL", http=http)
-    log.section("Gate 9 — deliverables", [str(p.relative_to(K.ROOT)) for p in paths])
+    paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, K.OUTPUTS, None, http=http)
+    log.section("Gate 9 — deliverables", [str(p.relative_to(K.ROOT)) for v in paths.values() for p in v])
     qa_lines, ok = final_qa(ranked, paths, cfg, token, http)
     reconcile_spend(budget, http, auth)
     log.section("Gate 10 — final QA", qa_lines + [f"project external cost (cumulative, reconciled): USD {budget.spent:.3f}"])
@@ -820,7 +910,7 @@ def run_demo(cfg: dict, log: RunLog, out: Path | None = None) -> int:
     audit_rows = build_audit_rows({}, {}, {})
     out = out or K.ROOT / "docs" / "preview"
     paths = deliver(ranked, cfg, fx, meta, audit_rows, layers, out, PREVIEW_BANNER, prefix="PREVIEW_SYNTHETIC_")
-    log.section("Demo deliverables", [str(p) for p in paths])
+    log.section("Demo deliverables", [str(p) for v in paths.values() for p in v])
     lines, _ = final_qa(ranked, paths, cfg, None, None, production=False)
     print("\n".join(lines))
     return 0

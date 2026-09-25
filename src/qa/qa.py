@@ -232,7 +232,7 @@ def run_qa(ranked: pd.DataFrame, cfg: dict, http, manual_path: Path, live: bool 
     for col in ("qa_status", "qa_notes", "qa_checked_at"):
         if col not in ranked.columns:
             ranked[col] = None
-    in_scope = ranked["category"].isin(["PRIMARY", "STRETCH", "NEAR_MISS"])
+    in_scope = ranked["category"].isin(["PRIMARY", "STRETCH", "BORDERLINE", "NEAR_MISS"])
     top_n = cfg["qa"]["top_n_programmatic"]
     deep_n = cfg["qa"]["top_n_deep"]
     prim = ranked[in_scope].sort_values(["category", "rank_in_category"])

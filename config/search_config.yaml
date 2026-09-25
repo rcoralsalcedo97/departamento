@@ -26,6 +26,9 @@ budget:
   # this many fit points to be ranked above it.
   strict_preference_margin: 5
   stretch_max_rent: 1100       # 1,001–1,100 → STRETCH_NEGOTIABLE sheet only
+  # Up to this % above the stretch ceiling (1% = USD 11, typically an FX-conversion effect) → BORDERLINE:
+  # shown on the NEAR_MISSES sheet, never budget-compliant, never in the shortlist.
+  borderline_max_over_pct: 1.0
   # Portal-side price ceiling. Slightly above stretch so PEN-priced listings converted by
   # the portal at a different rate are not lost. Every record is re-validated after extraction.
   query_max_rent: 1150

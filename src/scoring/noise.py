@@ -7,6 +7,43 @@ view, floor). This is an *estimate*; the report always recommends checking noise
 from __future__ import annotations
 
 import math
+import re
+
+from ..normalize.text_signals import fold
+
+# Major arterials in and around Miraflores (heavy traffic). Paseo de la República *is* the Vía Expresa.
+ARTERIAL_RX = re.compile(
+    r"paseo de la republica|via expresa|\b(?:av(?:enida)?\.?\s+)(?:"
+    r"arequipa|(?:alfredo\s+)?benavides|angamos|(?:jose\s+)?larco|(?:jose\s+)?pardo|ricardo palma|diagonal|"
+    r"(?:republica de\s+)?panama|(?:del\s+)?ejercito|comandante espinar|(?:la\s+)?aramburu|santa cruz|armendariz|"
+    r"petit thouars|reducto|28 de julio)\b|circuito de playas|costa verde")
+NOISE_LABELS = ("LIKELY QUIET", "POSSIBLY QUIET", "NOISE UNCERTAIN", "LIKELY NOISY")
+
+
+def arterial_evidence(row: dict) -> tuple[str | None, str | None]:
+    """(street the unit is ON, arterial merely MENTIONED) from the listing's own address/title/description."""
+    from ..geospatial.geocode import address_evidence
+    ev = address_evidence(row.get("address"), row.get("title"), row.get("description"))
+    on = ev["street"] if ev and ARTERIAL_RX.search(fold(ev["street"])) else None
+    if on is None and isinstance(row.get("address"), str) and ARTERIAL_RX.search(fold(row["address"])):
+        on = row["address"]
+    blob = fold(" ".join(str(row.get(k) or "") for k in ("title", "description")))
+    m = ARTERIAL_RX.search(blob)
+    return on, (m.group(0) if m else None)
+
+
+def noise_label(risk: str, conf: str, on_arterial: bool, avenue_view: bool, interior: bool,
+                positive_text: bool = False) -> str:
+    """Plain-language category that never claims more than the evidence supports."""
+    if avenue_view or (on_arterial and not interior):
+        return "LIKELY NOISY"
+    if risk == "HIGH" and conf in ("HIGH", "MEDIUM"):
+        return "LIKELY NOISY"
+    if risk == "LOW" and conf in ("HIGH", "MEDIUM"):
+        return "LIKELY QUIET"
+    if risk == "LOW" or (conf == "LOW" and risk != "HIGH" and positive_text):
+        return "POSSIBLY QUIET"          # positive listing wording (interior-facing, acoustic windows) only
+    return "NOISE UNCERTAIN"
 
 
 def _num(v):
@@ -97,6 +134,16 @@ def assess_noise(row: dict, cfg: dict) -> dict:
     elif row.get("exterior_view") is True and geo_ok and (_num(row.get("dist_major_road_m")) or 999) <= 150:
         text_delta -= 4
         reasons.append("street-facing unit near a major road")
+    on_arterial, mentioned = arterial_evidence(row)
+    if on_arterial:
+        flags.add("ON_MAJOR_ARTERIAL")
+        if row.get("interior_view") is not True:
+            text_delta += t["avenue_view"]
+        reasons.append(f"listing address is on {on_arterial} — a major arterial"
+                       + (" (Vía Expresa)" if "republica" in fold(on_arterial) else ""))
+    elif mentioned:
+        flags.add("MAJOR_ARTERIAL_MENTIONED")
+        reasons.append(f"listing mentions '{mentioned}' (major arterial) — check the distance")
     if row.get("quiet_claim") is True:
         text_delta += t["quiet_street_claim"]
         reasons.append("seller describes the street as quiet (unverified claim)")
@@ -115,6 +162,11 @@ def assess_noise(row: dict, cfg: dict) -> dict:
 
     th = nm["risk_thresholds"]
     risk = "LOW" if score >= th["low_from"] else "MEDIUM" if score >= th["medium_from"] else "HIGH"
+    supported = geo_ok or text_delta != 0
+    if not supported:
+        risk = "UNKNOWN"      # no location and no noise wording: the exposure is genuinely unknown
+        reasons = [r for r in reasons if not r.startswith("no usable coordinates")]
+        reasons.insert(0, "no map location and no noise-related wording in the listing — street exposure unknown")
     precision = row.get("coord_precision")
     orientation_known = any(row.get(k) is True for k in ("interior_view", "exterior_view", "avenue_view"))
     if not geo_ok:
@@ -132,5 +184,8 @@ def assess_noise(row: dict, cfg: dict) -> dict:
 
     reason = "; ".join(reasons[:6])
     reason = reason[0].upper() + reason[1:] + f". Quietness estimate: {conf.lower()} confidence."
-    return {"quietness_score_0_100": round(score), "noise_risk": risk, "noise_confidence": conf,
-            "quietness_reason": reason, "_noise_flags": sorted(flags)}
+    label = noise_label(risk, conf, bool(on_arterial), row.get("avenue_view") is True, row.get("interior_view") is True,
+                        row.get("interior_view") is True or row.get("acoustic_windows") is True)
+    # the numeric score stays neutral (50) inside the fit score, but is only *shown* where it is supportable
+    return {"quietness_score_0_100": round(score), "quietness_supported": supported, "noise_risk": risk,
+            "noise_confidence": conf, "noise_label": label, "quietness_reason": reason, "_noise_flags": sorted(flags)}

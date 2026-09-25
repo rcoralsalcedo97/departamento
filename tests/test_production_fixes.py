@@ -289,3 +289,35 @@ def test_one_run_per_bedroom_segment(cfg, monkeypatch):
     runs.clear()   # full mode: a run never requests more than the plan returns
     navent.collect_navent("urbania", cfg["sources"]["urbania"], cfg, None, CostBudget(5.0), "full", auth, max_items=77)
     assert [r[4] for r in runs] == [10, 10]
+
+
+# --------------------------------------------------------------------------- full-run rules
+def test_borderline_band(cfg):
+    from src.scoring.scoring import budget_class, classify
+    row = dict(source="urbania", source_listing_id="1", source_url="https://urbania.pe/inmueble/x-1", operation="alquiler",
+               property_type="Departamento", bedrooms=1, district="Miraflores", title="Depa", active_status="LIKELY_ACTIVE")
+    assert classify({**row, "rent_usd": 1104.87}, cfg)[0] == "BORDERLINE"
+    assert budget_class({**row, "rent_usd": 1104.87}, cfg)[0] == "BORDERLINE"
+    assert classify({**row, "rent_usd": 1100.0}, cfg)[0] == "STRETCH"
+    assert classify({**row, "rent_usd": 1112.0}, cfg)[0] == "EXCLUDED"
+
+
+def test_noise_unknown_without_evidence_and_arterial_visible(cfg):
+    from src.scoring.noise import assess_noise
+    plain = assess_noise({"description": "Lindo departamento con cocina equipada."}, cfg)
+    assert plain["noise_risk"] == "UNKNOWN" and plain["noise_label"] == "NOISE UNCERTAIN" and not plain["quietness_supported"]
+    on = assess_noise({"description": "Ubicado en Miraflores, Cdra. 61 de Av. Paseo de la República) vista a la calle"}, cfg)
+    assert "ON_MAJOR_ARTERIAL" in on["_noise_flags"] and on["noise_label"] == "LIKELY NOISY"
+    assert on["noise_confidence"] == "LOW"
+    quiet = assess_noise({"interior_view": True}, cfg)
+    assert quiet["noise_label"] == "POSSIBLY QUIET" and quiet["noise_confidence"] == "LOW"
+
+
+def test_hindi_translation_keeps_numbers_and_names():
+    from src.reporting.i18n import language, t
+    with language("hi"):
+        assert t("≈ USD 934 (USD 860 rent + S/ 250 maintenance)") == "≈ USD 934 (USD 860 किराया + S/ 250 रखरखाव शुल्क)"
+        assert t("listing address is on Avenida Paseo de la República — a major arterial (Vía Expresa)").startswith(
+            "विज्ञापन का पता Avenida Paseo de la República पर है")
+        assert t("UNKNOWN") == "जानकारी उपलब्ध नहीं" and t("STRICT_ALL_IN") == "STRICT_ALL_IN"
+        assert t("https://urbania.pe/inmueble/x-1") == "https://urbania.pe/inmueble/x-1"
