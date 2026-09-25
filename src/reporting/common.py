@@ -95,7 +95,11 @@ def property_label(r) -> str:
     head = f"{beds:.0f}BR" if beds is not None else "?BR"
     if area:
         head += f" · {area:.0f} m²"
-    return f"{head} — {where}" if where else f"{head} — {str(r.get('title') or '')[:60]}"
+    if where:
+        return f"{head} — {where}"
+    # no street or zone published: name the district and the portal listing ID (what the agent will recognise)
+    lid = r.get("source_listing_id")
+    return f"{head} — {r.get('district') or 'Miraflores'}" + (f" · ID {lid}" if lid else "")
 
 
 def location_text(r) -> str:
@@ -135,6 +139,17 @@ def contact_text(r) -> str:
         # no phone published (free-plan list output has none): the listing page's own form is the contact path
         parts.append(f"Contact via listing ({sources_text(r) or 'portal'} contact form)")
     return " · ".join(parts)
+
+
+UTILITY_EN = {"agua": "water", "luz": "electricity", "gas": "gas", "internet": "internet", "wifi": "internet",
+              "cable": "cable TV", "servicios": "utilities", "arbitrios": "municipal fees"}
+
+
+def utilities_text(r) -> str:
+    raw = r.get("utilities_included")
+    if not raw:
+        return "UNKNOWN"
+    return "; ".join(dict.fromkeys(UTILITY_EN.get(x.strip().lower(), x.strip()) for x in str(raw).split(";") if x.strip()))
 
 
 def noise_text(r) -> str:

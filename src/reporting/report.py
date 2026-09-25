@@ -162,7 +162,8 @@ def _availability(r: dict) -> str:
 
 
 def _location_line(r: dict) -> str:
-    where = r.get("address") or r.get("subarea") or r.get("district") or ""
+    zone = r.get("subarea") if str(r.get("subarea") or "").strip().lower() not in ("", "lima", "miraflores") else None
+    where = r.get("address") or (f"{zone}, {r.get('district') or 'Miraflores'}" if zone else r.get("district")) or ""
     prec, conf = r.get("coord_precision"), r.get("geocoding_confidence")
     if r.get("coord_source") == "LISTING" and prec in RELIABLE_PRECISION:
         note = L("exact position published by the portal", "पोर्टल द्वारा प्रकाशित सटीक स्थान")
@@ -209,7 +210,7 @@ def scatter_svg(df: pd.DataFrame, top: pd.DataFrame, budget: float) -> str:
     pts = df[df["area_m2"].notna() & df["rent_usd"].notna()]
     if pts.empty:
         return f"<p class='muted'>{E(L('Not enough data with published area to draw the rent–area chart.', 'किराया–क्षेत्रफल चार्ट के लिए पर्याप्त आँकड़े नहीं हैं।'))}</p>"
-    W, H, L_, R, T, B = 700, 280, 52, 14, 24, 36
+    W, H, L_, R, T, B = 700, 240, 52, 14, 24, 36
     xmax = max(40, math.ceil(pts["area_m2"].max() / 20) * 20)
     xmin = max(0, math.floor(pts["area_m2"].min() / 20) * 20)
     ymax = max(budget * 1.12, math.ceil(pts["rent_usd"].max() / 100) * 100)
@@ -242,9 +243,17 @@ def scatter_svg(df: pd.DataFrame, top: pd.DataFrame, budget: float) -> str:
         beds = int(r["bedrooms"]) if C.num(r["bedrooms"]) in (1, 2) else 1
         out.append(f'<circle cx="{sx(r["area_m2"]):.1f}" cy="{sy(r["rent_usd"]):.1f}" r="4" fill="{SERIES[beds]}" '
                    f'stroke="{SURFACE}" stroke-width="2"/>')
+    labels: dict[tuple[int, int], list[int]] = {}      # Top-10 units at the same rent and area share one label
     for _, r in pts[pts["_key"].isin(top_ids)].iterrows():
-        out.append(f'<text x="{sx(r["area_m2"]) + 6:.1f}" y="{sy(r["rent_usd"]) - 5:.1f}" font-size="9" '
-                   f'font-weight="bold" fill="{INK}">#{top_ids[r["_key"]]}</text>')
+        labels.setdefault((round(sx(r["area_m2"])), round(sy(r["rent_usd"]))), []).append(top_ids[r["_key"]])
+    placed: list[tuple[float, float, float]] = []       # (x, y, width) of labels already drawn
+    for (x, y), ranks in sorted(labels.items(), key=lambda kv: kv[0][1]):
+        text = " ".join(f"#{k}" for k in sorted(ranks))
+        w, ty = 6.5 * len(text), y - 5
+        while any(abs(ty - py) < 11 and x + 6 < px + pw and px < x + 6 + w for px, py, pw in placed):
+            ty += 11                                   # nudge below the label it would collide with
+        placed.append((x + 6, ty, w))
+        out.append(f'<text x="{x + 6}" y="{ty}" font-size="9" font-weight="bold" fill="{INK}">{text}</text>')
     lx = L_ + 8
     for beds, label in ((1, L("1 bedroom", "1 बेडरूम")), (2, L("2 bedrooms", "2 बेडरूम"))):
         out.append(f'<circle cx="{lx}" cy="{T - 10}" r="4" fill="{SERIES[beds]}"/>'
@@ -321,8 +330,8 @@ def _top5(top: pd.DataFrame) -> str:
                  f"<br><span class='pill {E(str(r.get('budget_class')))}' style='font-size:6.6pt'>"
                  f"{E(t(BUDGET_LABEL.get(r.get('budget_class'), '')))}</span></td>"
                  f"<td class='num'>{int(C.num(r.get('bedrooms')) or 0)}</td>"
-                 f"<td class='num'>{E(_area_text(r))}</td>"
-                 f"<td>{E(t(C.furnished_text(r)))}</td>"
+                 f"<td class='num'>{E(_area_text(r) if C.num(r.get('area_m2')) else t('Unknown'))}</td>"
+                 f"<td>{E(t(C.furnished_text(r).replace('UNKNOWN', 'Unknown')))}</td>"
                  f"<td>{_noise_pill(r)}<br><span class='muted'>{E(_noise_line(r))}</span></td>"
                  f"<td>{E(reason)}</td><td>{E(t(str(r.get('main_drawback') or '')))}</td>"
                  f"<td><a class='view' href='{E(str(r.get('source_url')))}'>{E(L('View', 'देखें'))} ↗</a></td></tr>")
@@ -336,7 +345,7 @@ def _top5(top: pd.DataFrame) -> str:
     return f"<table class='top5'><tr>{ths}</tr>{rows}</table>"
 
 
-def _card(i: int, r: dict) -> str:
+def _card(i: int, r: dict, twins: list[int] | None = None) -> str:
     links = [f'<a href="{E(r["source_url"])}">{E(t("View listing"))} ↗</a>'] if r.get("source_url") else []
     if C.map_url(r):
         approx = r.get("coord_precision") in ("STREET_LEVEL", "APPROXIMATE") or C.num(r.get("latitude")) is None
@@ -374,11 +383,19 @@ def _card(i: int, r: dict) -> str:
   <p class="kv"><b>{E(L("Noise.", "शोर।"))}</b> {_noise_pill(r)} {E(_noise_line(r))} · {E(L("quietness score", "शांति स्कोर"))} {E(_quiet_score(r))}</p>
   <p class="kv"><b>{E(L("Evidence.", "प्रमाण।"))}</b> {E(t(str(r.get('quietness_reason') or '')))}</p>
   {arterial}
+  {_twin_note(twins)}
   <p class="kv"><b>{E(L("Location.", "स्थान।"))}</b> {_location_line(r)}</p>
   <p class="kv"><b>{E(L("Contact.", "संपर्क।"))}</b> {contact if contact.startswith("<span") else E(contact)}</p>
   {_foreign_line(r)}
   <div class="foot"><span class="muted">{E(_availability(r))}</span><span class="links">{' '.join(links)}</span></div>
 </div>"""
+
+
+def _twin_note(twins: list[int] | None) -> str:
+    if not twins:
+        return ""
+    ks = ", ".join(f"#{k}" for k in twins)
+    return (f'<p class="kv warn">⚠ {E(L(f"Possible duplicate of {ks}: very similar details but no shared photo or ID — it may be the same flat listed by two different agents. Ask each for the exact address before visiting both.", f"संभवतः {ks} जैसा ही अपार्टमेंट: विवरण लगभग एक जैसे, पर कोई साझा फ़ोटो या ID नहीं — यह दो अलग एजेंटों द्वारा विज्ञापित एक ही अपार्टमेंट हो सकता है। दोनों को देखने से पहले हर एजेंट से सटीक पता पूछें।"))}</p>')
 
 
 def _mini_table(rows: pd.DataFrame, cols: list[tuple[str, callable, bool]]) -> str:
@@ -489,11 +506,13 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
                      f"{mism} विज्ञापनों में पोर्टल का USD आँकड़ा S/ ÷ दर से {meta.get('fx_flag_pct', 5)}% से अधिक अलग है (CURRENCY_CONVERSION_MISMATCH): मुद्रा और राशि लिखित में तय करें।"))
 
     src_rows = "".join(
-        f"<tr><td>{_nt(a['Source'])}</td><td>{E(str(a['Status']))}</td>"
+        f"<tr><td>{E(t(a['Source'], record=False))}</td><td>{E(str(a['Status']))}</td>"
         f"<td class='num'>{E(str(a['Records collected']))}</td></tr>"
         for a in audit_rows if not str(a["Status"]).startswith("PENDING (not automated"))
 
-    cards = "".join(_card(i, r) for i, r in enumerate(C.records(top), start=1)) or \
+    gid_rank = {r["duplicate_group_id"]: k for k, r in enumerate(C.records(top), start=1)}
+    twins = lambda r: sorted(gid_rank[g] for g in str(r.get("possible_duplicate_of") or "").split("; ") if g in gid_rank)
+    cards = "".join(_card(i, r, twins(r)) for i, r in enumerate(C.records(top), start=1)) or \
         f"<p class='muted'>{E(L('No budget-compliant listings available in this run.', 'इस खोज में बजट के भीतर कोई अपार्टमेंट उपलब्ध नहीं।'))}</p>"
     n_geo = int(ranked["latitude"].notna().sum())
     n_high = int(((ranked.get("geocoding_confidence") == "HIGH") | (ranked["coord_source"] == "LISTING")).sum())
@@ -593,8 +612,8 @@ def _build(ranked: pd.DataFrame, meta: dict, audit_rows: list[dict], geo: dict |
 <section class="keep"><h2>{E(L("8 · Verification checklist before signing", "8 · अनुबंध पर हस्ताक्षर से पहले जाँच-सूची"))}</h2>
 <ul>{''.join(f'<li>{c}</li>' for c in checklist)}</ul></section>
 
-<h2>{E(L("9 · Sources, market snapshot and methodology", "9 · स्रोत, बाज़ार की झलक और कार्यप्रणाली"))}</h2>
-<table><tr><th>{E(L("Source", "स्रोत"))}</th><th style="width:30%">{E(L("Status", "स्थिति"))}</th><th class="num">{E(L("Records", "रिकॉर्ड"))}</th></tr>{src_rows}</table>
+<section class="keep"><h2>{E(L("9 · Sources, market snapshot and methodology", "9 · स्रोत, बाज़ार की झलक और कार्यप्रणाली"))}</h2>
+<table><tr><th>{E(L("Source", "स्रोत"))}</th><th style="width:30%">{E(L("Status", "स्थिति"))}</th><th class="num">{E(L("Records", "रिकॉर्ड"))}</th></tr>{src_rows}</table></section>
 <figure>{scatter_svg(in_scope, top, meta['budget'])}
 <figcaption>{E(L("Each dot is one unique listing (cross-posts merged). Relative to this sample only — not an official valuation.", "हर बिंदु एक अद्वितीय अपार्टमेंट है (दोहराव जोड़े गए)। केवल इसी नमूने की तुलना — आधिकारिक मूल्यांकन नहीं।"))}</figcaption></figure>
 <ul>{''.join(f'<li>{m}</li>' for m in methodology)}</ul>

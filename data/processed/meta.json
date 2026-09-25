@@ -1,0 +1,23 @@
+{
+ "generated_at": "2026-09-24T20:42:10-05:00",
+ "fx_rate": 3.385,
+ "fx_source": "BCRP series PD04640PD (SBS sell rate), period 23.Set.26 — https://estadisticas.bcrp.gob.pe/estadisticas/series/api/PD04640PD/json/2026-09-11/2026-09-25/ing (2026-09-24T20:36:52-05:00)",
+ "fx_source_short": "BCRP live",
+ "n_raw": 40,
+ "n_unique": 27,
+ "n_primary": 23,
+ "n_stretch": 2,
+ "n_near": 0,
+ "cost": 2.652,
+ "n_borderline": 1,
+ "fx_flag_pct": 5,
+ "top_n": 10,
+ "alternatives_max": 20,
+ "budget": 1000,
+ "by_source": {
+  "urbania": 20,
+  "adondevivir": 20,
+  "mercadolibre": 0,
+  "manual": 0
+ }
+}

@@ -290,6 +290,17 @@ def devanagari_checks(pdf: Path, rep: Report) -> None:
                     if any(ch in txt for ch in ("\ufffd", "\u25a1", "\u25cc", "\u0000")):
                         bad.append(f"p{i}: '{txt[:25]}'")
     fonts = {f[3] for page in doc for f in page.get_fonts()}
+    # English prose leaking into the Hindi report (names, addresses, URLs and codes are allowed; sentences are not)
+    prose = re.compile(r"\b(the|from|with|within|listing|says|approximate|mapped|major road|and|of|is|not|only|"
+                       r"confirm|maintenance|rent|furnished|noise|bedroom)\b", re.I)
+    leaks = []
+    for i, page in enumerate(doc, start=1):
+        for line in page.get_text().splitlines():
+            clean = re.sub(r"https?://\S+|\S+\.xlsx|Miraflores Rental Shortlist", "", line)
+            if prose.search(clean):
+                leaks.append(f"p{i}: '{line.strip()[:60]}'")
+    rep.add("PASS" if not leaks else "FAIL", "[HI] 19. No English prose left in the Hindi report",
+            f"{len(leaks)} lines" + (f": {leaks[:4]}" if leaks else ""))
     rep.add("PASS" if n_dev > 2000 and not wrong_font and not bad else "FAIL",
             "[HI] 14. Devanagari renders with a Devanagari font (no boxes, broken signs or replacement glyphs)",
             f"{n_dev} Devanagari characters; fonts: {', '.join(sorted(x for x in fonts if 'Devanagari' in x))}"
